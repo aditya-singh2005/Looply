@@ -52,6 +52,7 @@ export function GoalRow({
   const currentQuarter = window?.quarter;
 
   async function updateStatus(status: Goal["status"], action: string) {
+    if (!user) return;
     try {
       setBusy(true);
       const supabase = createClient();
@@ -81,7 +82,7 @@ export function GoalRow({
   }
 
   async function deleteGoal() {
-    if (!confirm("Delete this goal? This cannot be undone.")) return;
+    if (!user || !confirm("Delete this goal? This cannot be undone.")) return;
     try {
       setBusy(true);
       const supabase = createClient();

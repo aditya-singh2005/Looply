@@ -7,7 +7,7 @@ export async function getActiveCycle() {
   const { data, error } = await supabase
     .from("goal_cycles")
     .select("*")
-    .eq("status", "active")
+    .eq("is_active", true)
     .maybeSingle();
   if (error) throw error;
   return data as GoalCycle | null;
@@ -20,7 +20,11 @@ export async function getGoalsByEmployee(employeeId: string, cycleId?: string) {
     .select("*, thrust_areas(*), goal_achievements(*)")
     .eq("employee_id", employeeId)
     .order("created_at", { ascending: true });
-  if (cycleId) query = query.eq("cycle_id", cycleId);
+  
+  if (cycleId) {
+    query = query.eq("cycle_id", cycleId);
+  }
+  
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as Goal[];

@@ -12,7 +12,8 @@ import {
 import { createClient } from "@/lib/supabase";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 function ScorePill({ score }: { score: number }) {
   if (score >= 90) return <span className="rounded bg-green-100 px-2 py-0.5 text-xs font-bold text-green-700">{score}%</span>;
@@ -175,9 +176,12 @@ export default function AdminOverview() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           <Button variant="outline" className="border-indigo-200 text-indigo-700 hover:bg-indigo-50">Add New Cycle</Button>
-          <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" asChild>
-            <Link href="/admin/cycles">Manage Cycle</Link>
-          </Button>
+          <Link 
+            href="/admin/cycles" 
+            className={cn(buttonVariants({ variant: "default" }), "bg-indigo-600 hover:bg-indigo-700 text-white")}
+          >
+            Manage Cycle
+          </Link>
         </div>
       </Card>
 

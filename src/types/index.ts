@@ -1,7 +1,7 @@
 export type Role = "employee" | "manager" | "admin";
 export type UomType = "numeric_min" | "numeric_max" | "timeline" | "zero";
 export type GoalStatus = "draft" | "submitted" | "approved" | "returned" | "locked";
-export type CheckinStatus = "not_started" | "on_track" | "completed";
+export type CheckinStatus = "not_started" | "on_track" | "at_risk" | "off_track" | "completed";
 export type Quarter = "Q1" | "Q2" | "Q3" | "Q4";
 export type CycleStatus = "draft" | "active" | "closed";
 

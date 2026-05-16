@@ -59,10 +59,13 @@ export function EmployeeDashboard() {
 
   if (role !== "employee" && mounted) {
     return (
-      <div className="rounded-card border border-border bg-white p-8 text-center shadow-card">
+      <div className="rounded-card border border-border bg-white p-12 text-center shadow-card">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-bg text-warning">
+          <Target className="h-6 w-6" />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-gray-900">Access Restricted</h2>
         <p className="text-text-secondary">
-          Switch to <strong>Employee</strong> role to view the employee dashboard, or use the
-          sidebar for {role} navigation.
+          This dashboard is reserved for employee profiles. Please contact your administrator if you believe this is an error.
         </p>
       </div>
     );

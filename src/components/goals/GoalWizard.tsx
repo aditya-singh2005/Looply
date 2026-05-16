@@ -66,8 +66,8 @@ export function GoalWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
-  const { user } = useRole();
-  const { goals, refetch } = useGoals(user.id);
+  const { user, mounted } = useRole();
+  const { goals, refetch } = useGoals(user?.id);
   const [step, setStep] = useState(1);
   const [thrustAreas, setThrustAreas] = useState<ThrustArea[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -154,6 +154,10 @@ export function GoalWizard() {
     }
 
     const values = form.getValues();
+    if (!user) {
+      toast.error("User profile not loaded. Please try again.");
+      return;
+    }
     setSubmitting(true);
     try {
       const supabase = createClient();

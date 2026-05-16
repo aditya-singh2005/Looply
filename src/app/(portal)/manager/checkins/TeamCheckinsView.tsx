@@ -106,16 +106,16 @@ export default function TeamCheckinsView() {
       if (commentsError) throw commentsError;
 
       // Map everything together
-      const mappedTeam = reports.map(report => {
+      const mappedTeam = reports.map((report: any) => {
         const memberGoals = goals
-          .filter(g => g.employee_id === report.id)
-          .map(g => {
-            const goalAchievements = achievements.filter(a => a.goal_id === g.id);
+          .filter((g: any) => g.employee_id === report.id)
+          .map((g: any) => {
+            const goalAchievements = achievements.filter((a: any) => a.goal_id === g.id);
             return { ...g, achievements: goalAchievements };
           });
 
-        const allSubmitted = memberGoals.length > 0 && memberGoals.every(g => g.achievements.some(a => a.submitted_at));
-        const anyProgress = memberGoals.some(g => g.achievements.some(a => a.status !== 'not_started'));
+        const allSubmitted = memberGoals.length > 0 && memberGoals.every((g: any) => g.achievements.some((a: any) => a.submitted_at));
+        const anyProgress = memberGoals.some((g: any) => g.achievements.some((a: any) => a.status !== 'not_started'));
         
         let status: 'submitted' | 'in_progress' | 'not_started' = 'not_started';
         if (allSubmitted) status = 'submitted';

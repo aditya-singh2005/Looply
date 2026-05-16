@@ -1,12 +1,12 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
-import { RoleSwitcher } from "./RoleSwitcher";
+import { Bell, Search, LogOut } from "lucide-react";
 import { useRole } from "@/lib/hooks/useRole";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -21,7 +21,7 @@ export function Topbar({
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
 }) {
-  const { user, mounted } = useRole();
+  const { user, role, mounted, signOut } = useRole();
 
   return (
     <header className="fixed right-0 top-0 z-40 flex h-topbar w-full items-center justify-between border-b border-border bg-white px-4 md:left-16 md:px-6 lg:left-[240px]">
@@ -43,14 +43,13 @@ export function Topbar({
         </div>
       </div>
 
-      <div className="hidden items-center gap-6 md:flex">
-        <RoleSwitcher />
-      </div>
+      <div className="flex items-center gap-2 md:gap-4">
+        {mounted && role && (
+          <div className="hidden md:flex items-center px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100">
+            <span className="text-xs font-semibold text-indigo-700 capitalize tracking-wide">{role}</span>
+          </div>
+        )}
 
-      <div className="flex items-center gap-2 md:gap-3">
-        <div className="md:hidden">
-          <RoleSwitcher />
-        </div>
         <button
           type="button"
           className="relative rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-container"
@@ -71,8 +70,16 @@ export function Topbar({
               {mounted && user ? user.name : ""}
             </span>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem disabled>{mounted && user ? user.email : ""}</DropdownMenuItem>
+          <DropdownMenuContent align="end" className="w-56">
+            <div className="flex flex-col space-y-1 p-2">
+              <p className="text-sm font-medium leading-none">{mounted && user ? user.name : ""}</p>
+              <p className="text-xs leading-none text-muted-foreground">{mounted && user ? user.email : ""}</p>
+            </div>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={signOut} className="text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer">
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Log out</span>
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase'
 import { toast } from 'sonner'
-import { Loader2, Mail, Lock, User, Building2, Briefcase } from 'lucide-react'
+import { Target, Loader2 } from 'lucide-react'
 
 export default function SignupPage() {
   const [email, setEmail] = useState('')
@@ -44,114 +44,101 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center p-4 relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
-        <div className="absolute -top-[10%] -right-[10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-[10%] -left-[10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-[120px]" />
-      </div>
+    <div className="min-h-screen bg-[#f8f9fc] flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      <div className="absolute inset-0 z-0 opacity-40" style={{ backgroundImage: 'radial-gradient(#e4e1ee 1px, transparent 1px)', backgroundSize: '32px 32px' }}></div>
 
-      <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-10 transform transition-all duration-700 animate-in fade-in slide-in-from-top-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-gradient-to-tr from-blue-600 to-indigo-600 shadow-2xl shadow-blue-500/30 mb-8 border border-white/10">
-            <Building2 className="w-10 h-10 text-white" />
+      <div className="w-full max-w-[420px] relative z-10">
+        <div className="bg-white border border-[#e4e1ee] rounded-2xl shadow-sm p-8 md:p-10">
+          <div className="flex flex-col items-center mb-8">
+            <div className="flex items-center gap-2 mb-6">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4f46e5] text-white">
+                <Target className="h-5 w-5" strokeWidth={2} />
+              </div>
+              <span className="text-xl font-bold text-[#1b1b24]">GoalTrack</span>
+            </div>
+            <h1 className="text-2xl font-bold text-[#1b1b24] mb-2 tracking-tight">Create your account</h1>
+            <p className="text-[#777587] text-sm text-center">Start tracking your team's goals with precision.</p>
           </div>
-          <h1 className="text-4xl font-extrabold text-white mb-3 tracking-tight">Create Account</h1>
-          <p className="text-slate-400 text-lg">Join the GoalTrack workspace</p>
-        </div>
 
-        <div className="bg-slate-900/40 backdrop-blur-2xl border border-white/10 p-10 rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.3)] animate-in zoom-in-95 duration-500">
-          <form onSubmit={handleSignup} className="space-y-5">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 ml-1">Full Name</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-slate-500" />
-                </div>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all"
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#464555]">Full Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-[#e4e1ee] rounded-lg text-[#1b1b24] text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] transition-colors"
+                placeholder="e.g., John Doe"
+                required
+              />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 ml-1">Email Address</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-slate-500" />
-                </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all"
-                  placeholder="name@goaltrack.com"
-                  required
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#464555]">Work Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-[#e4e1ee] rounded-lg text-[#1b1b24] text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] transition-colors"
+                placeholder="e.g., john@company.com"
+                required
+              />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 ml-1">Password</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-slate-500" />
-                </div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all"
-                  placeholder="••••••••"
-                  required
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#464555]">Assigned Role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-[#e4e1ee] rounded-lg text-[#1b1b24] text-sm focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] transition-colors"
+              >
+                <option value="employee">Employee</option>
+                <option value="manager">Manager</option>
+                <option value="admin">Admin</option>
+              </select>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-300 ml-1">Assigned Role</label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <Briefcase className="h-5 w-5 text-slate-500" />
-                </div>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="block w-full pl-11 pr-4 py-3 bg-slate-800/40 border border-slate-700/50 rounded-2xl text-white appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500/50 transition-all"
-                >
-                  <option value="employee" className="bg-slate-900">Employee</option>
-                  <option value="manager" className="bg-slate-900">Manager</option>
-                  <option value="admin" className="bg-slate-900">Admin</option>
-                </select>
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-[13px] font-semibold text-[#464555]">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-2.5 bg-white border border-[#e4e1ee] rounded-lg text-[#1b1b24] text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#4f46e5]/20 focus:border-[#4f46e5] transition-colors"
+                placeholder="Your password"
+                required
+              />
             </div>
 
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full mt-2 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold rounded-2xl shadow-xl shadow-blue-500/20 flex items-center justify-center space-x-3 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+              className="w-full py-2.5 px-4 bg-[#4f46e5] hover:bg-indigo-700 text-white font-medium rounded-lg shadow-sm flex items-center justify-center transition-colors disabled:opacity-70 disabled:cursor-not-allowed text-sm mt-4"
             >
               {isLoading ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
+                <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
-                <>
-                  <span>Create Account</span>
-                </>
+                'Get Started'
               )}
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t border-white/5 text-center">
-            <p className="text-slate-400 font-medium">
+          <div className="mt-8 text-center">
+            <p className="text-[#777587] text-[13px]">
               Already have an account?{' '}
-              <Link href="/login" className="text-blue-400 font-bold hover:text-blue-300 transition-colors">
-                Sign in
+              <Link href="/login" className="text-[#4f46e5] font-medium hover:underline">
+                Login
               </Link>
             </p>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-[#777587] text-xs">
+          <p>© 2026 GoalTrack Technologies. All rights reserved.</p>
+          <div className="mt-2 flex items-center justify-center gap-4">
+            <a href="#" className="hover:text-[#464555] transition-colors">Privacy Policy</a>
+            <a href="#" className="hover:text-[#464555] transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-[#464555] transition-colors">Security</a>
           </div>
         </div>
       </div>

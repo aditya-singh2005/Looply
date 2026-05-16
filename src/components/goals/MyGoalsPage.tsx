@@ -37,8 +37,8 @@ function countByStatus(goals: Goal[]): Record<GoalFilter, number> {
 
 export function MyGoalsPage() {
   const { user, role, mounted } = useRole();
-  const employeeId = role === "employee" ? user.id : IDS.users.emp1;
-  const { goals, loading, refetch } = useGoals(mounted ? employeeId : null);
+  const employeeId = role === "employee" ? user?.id : IDS.users.emp1;
+  const { goals, loading, refetch } = useGoals(mounted && employeeId ? employeeId : null);
   const [filter, setFilter] = useState<GoalFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cycle, setCycle] = useState<GoalCycle | null>(null);
@@ -60,9 +60,13 @@ export function MyGoalsPage() {
 
   if (role !== "employee" && mounted) {
     return (
-      <div className="rounded-card border border-border bg-white p-8 text-center shadow-card">
+      <div className="rounded-card border border-border bg-white p-12 text-center shadow-card">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-warning-bg text-warning">
+          <Plus className="h-6 w-6" />
+        </div>
+        <h2 className="mb-2 text-xl font-bold text-gray-900">Access Restricted</h2>
         <p className="text-text-secondary">
-          Switch to <strong>Employee</strong> to view My Goals.
+          Personal goal management is available for employee roles only.
         </p>
       </div>
     );

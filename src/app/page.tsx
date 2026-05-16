@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase-server'
+import { createClient } from '@/lib/supabase/server'
 
 export default async function Index() {
-  const supabase = createClient()
+  const supabase = await createClient()
   
   const {
     data: { user },
@@ -20,7 +20,7 @@ export default async function Index() {
     .single()
 
   if (profile) {
-    return redirect(`/dashboard/${profile.role}`)
+    return redirect('/dashboard')
   }
 
   return redirect('/login')

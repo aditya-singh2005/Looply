@@ -12,7 +12,7 @@ import { toast } from "sonner";
 export function Sidebar() {
   const pathname = usePathname();
   const { role, user, mounted } = useRole();
-  const navItems = NAV_BY_ROLE[role];
+  const navItems = (role && NAV_BY_ROLE[role as keyof typeof NAV_BY_ROLE]) || [];
   const supabase = createClient();
 
   const handleLogout = async () => {

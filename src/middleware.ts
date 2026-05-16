@@ -43,7 +43,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protected routes
-  if (pathname.startsWith('/dashboard')) {
+  const protectedRoutes = ['/dashboard', '/admin', '/manager', '/goals', '/checkin']
+  const isProtected = protectedRoutes.some(route => pathname.startsWith(route))
+
+  if (isProtected) {
     if (!user) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
@@ -56,33 +59,21 @@ export async function middleware(request: NextRequest) {
       .single()
 
     if (!profile) {
-      // If profile doesn't exist yet (e.g. signup in progress), let it be
       return supabaseResponse
     }
 
     const role = profile.role
 
-    // Check if user is on the correct dashboard
-    if (pathname === '/dashboard') {
-      // Redirect to specific dashboard based on role
-      return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url))
+    if (pathname.startsWith('/admin') && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    if (pathname.startsWith('/dashboard/admin') && role !== 'admin') {
-      return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url))
+    if (pathname.startsWith('/manager') && role !== 'manager' && role !== 'admin') {
+      return NextResponse.redirect(new URL('/dashboard', request.url))
     }
 
-    if (pathname.startsWith('/dashboard/manager') && role !== 'manager' && role !== 'admin') {
-      return NextResponse.redirect(new URL(`/dashboard/${role}`, request.url))
-    }
-
-    if (pathname.startsWith('/dashboard/employee') && role !== 'employee' && role !== 'manager' && role !== 'admin') {
-      // Note: managers and admins can technically view employee dashboard if we want, 
-      // but for strict RBAC as requested:
-      if (role !== 'employee') {
-         // Maybe allow? User said "employee can access only employee dashboard"
-         // I'll stick to strict redirection to their own dashboard.
-      }
+    if (pathname === '/dashboard' && role === 'admin') {
+      return NextResponse.redirect(new URL('/admin', request.url))
     }
   }
 

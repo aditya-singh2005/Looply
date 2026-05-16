@@ -78,21 +78,25 @@ const QUARTER: Quarter = "Q2";
 const STATUS_OPTIONS: { value: CheckinStatus; label: string }[] = [
   { value: "not_started", label: "Not Started" },
   { value: "on_track", label: "On Track" },
+  { value: "at_risk", label: "At Risk" },
+  { value: "off_track", label: "Off Track" },
   { value: "completed", label: "Completed" },
 ];
 
 const STATUS_PILL: Record<CheckinStatus, { bg: string; text: string; dot: string }> = {
   not_started: { bg: "bg-gray-100", text: "text-gray-600", dot: "bg-gray-400" },
-  on_track: { bg: "bg-warning-bg", text: "text-warning", dot: "bg-warning" },
+  on_track: { bg: "bg-success-bg", text: "text-success", dot: "bg-success" },
+  at_risk: { bg: "bg-warning-bg", text: "text-warning", dot: "bg-warning" },
+  off_track: { bg: "bg-danger-bg", text: "text-danger", dot: "bg-danger" },
   completed: { bg: "bg-success-bg", text: "text-success", dot: "bg-success" },
 };
 
 function StatusBadge({ status }: { status: CheckinStatus }) {
-  const s = STATUS_PILL[status];
+  const s = STATUS_PILL[status] || STATUS_PILL.not_started;
   return (
     <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium", s.bg, s.text)}>
       <span className={cn("h-1.5 w-1.5 rounded-full", s.dot)} />
-      {STATUS_OPTIONS.find((o) => o.value === status)?.label}
+      {STATUS_OPTIONS.find((o) => o.value === status)?.label || status}
     </span>
   );
 }
@@ -137,12 +141,13 @@ function StatusSelect({
   onChange: (v: CheckinStatus) => void;
   disabled?: boolean;
 }) {
+  const pill = STATUS_PILL[value] || STATUS_PILL.not_started;
   return (
     <Select value={value} onValueChange={(v) => onChange(v as CheckinStatus)} disabled={disabled}>
-      <SelectTrigger className={cn("h-7 w-full border-0 px-2 text-xs font-medium", STATUS_PILL[value].bg, STATUS_PILL[value].text)}>
+      <SelectTrigger className={cn("h-7 w-full border-0 px-2 text-xs font-medium", pill.bg, pill.text)}>
         <div className="flex items-center gap-1.5">
-          <span className={cn("h-1.5 w-1.5 rounded-full", STATUS_PILL[value].dot)} />
-          {STATUS_OPTIONS.find((o) => o.value === value)?.label}
+          <span className={cn("h-1.5 w-1.5 rounded-full", pill.dot)} />
+          {STATUS_OPTIONS.find((o) => o.value === value)?.label || value}
         </div>
       </SelectTrigger>
       <SelectContent>
@@ -187,8 +192,10 @@ function DatePickerCell({
         <Calendar
           selected={selected}
           onSelect={(date) => {
-            onChange(date.toISOString().split("T")[0]);
-            setOpen(false);
+            if (date) {
+              onChange(date.toISOString().split("T")[0]);
+              setOpen(false);
+            }
           }}
         />
         {value && (
@@ -262,7 +269,7 @@ export function QuarterlyCheckinPage() {
 
   const hasCycle = cycle !== null;
 
-  const employeeId = mounted && role === "employee" ? user.id : IDS.users.emp1;
+  const employeeId = mounted && role === "employee" ? user?.id : IDS.users.emp1;
 
   const cycleQuarterStart = cycle ? cycle.q2_start : null;
   const cycleQuarterEnd = cycle ? cycle.q2_end : null;
@@ -275,8 +282,8 @@ export function QuarterlyCheckinPage() {
         const { data: cycleData } = await supabase
           .from("goal_cycles")
           .select("*")
-          .eq("status", "active")
-          .single();
+          .eq("is_active", true)
+          .maybeSingle();
         setCycle(cycleData as GoalCycle | null);
 
         if (cycleData) {

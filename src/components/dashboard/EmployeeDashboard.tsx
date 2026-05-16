@@ -25,7 +25,7 @@ export function EmployeeDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !user) return;
     async function load() {
       try {
         setLoading(true);
@@ -43,7 +43,7 @@ export function EmployeeDashboard() {
       }
     }
     load();
-  }, [mounted, role, user.id]);
+  }, [mounted, role, user?.id]);
 
   const window = cycle ? getCurrentQuarterWindow(cycle) : null;
   const avgScore = computeWeightedAverage(goals, window?.quarter ?? "Q2");
@@ -75,7 +75,7 @@ export function EmployeeDashboard() {
         <div className="space-y-2 md:max-w-md">
           <p className="text-sm font-medium text-white/80">{greeting()},</p>
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-            {mounted ? user.name.split(" ")[0] : "…"}
+            {mounted && user ? user.name.split(" ")[0] : "…"}
           </h1>
           <p className="text-sm text-white/70">
             Performance Cycle 2025 · {lockedCount} locked goals · Q2 check-in window

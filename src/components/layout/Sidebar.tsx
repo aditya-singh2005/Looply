@@ -6,11 +6,27 @@ import { Target, Plus, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_BY_ROLE } from "@/constants";
 import { useRole } from "@/lib/hooks/useRole";
+import { createClient } from "@/lib/supabase";
+import { toast } from "sonner";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { role, user, mounted } = useRole();
   const navItems = NAV_BY_ROLE[role];
+  const supabase = createClient();
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast.success("Logged out successfully");
+      window.location.href = "/login";
+    } catch (error: any) {
+      toast.error("Logout failed");
+      console.error(error);
+    }
+  };
 
   return (
     <aside
@@ -69,17 +85,22 @@ export function Sidebar() {
       </nav>
 
       <div className="mt-auto border-t border-border px-2 pt-4 lg:px-3">
-        <div className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-container">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-sm font-bold text-primary">
-            {mounted ? user.name.charAt(0) : "—"}
+        <div 
+          onClick={handleLogout}
+          className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-container cursor-pointer transition-colors group"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-sm font-bold text-primary group-hover:bg-primary-subtle/80">
+            {mounted && user ? user.name.charAt(0) : "—"}
           </div>
-          <div className="hidden min-w-0 flex-1 lg:block">
-            <p className="truncate text-xs font-bold">{mounted ? user.name : "Loading…"}</p>
+          <div className="hidden min-w-0 flex-1 lg:block text-left">
+            <p className="truncate text-xs font-bold group-hover:text-primary transition-colors">
+              {mounted && user ? user.name : "Loading…"}
+            </p>
             <p className="truncate text-[10px] text-text-muted">
-              {mounted ? user.email : ""}
+              {mounted && user ? user.email : ""}
             </p>
           </div>
-          <LogOut className="hidden h-[18px] w-[18px] text-text-muted lg:block" strokeWidth={1.5} />
+          <LogOut className="hidden h-[18px] w-[18px] text-red-500 lg:block group-hover:scale-110 transition-transform" strokeWidth={2} />
         </div>
       </div>
     </aside>

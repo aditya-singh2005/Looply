@@ -64,15 +64,15 @@ export function Topbar({
           <DropdownMenuTrigger className="flex items-center gap-2 rounded-lg p-1 outline-none focus-visible:ring-2 focus-visible:ring-primary/20">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-primary-subtle text-sm font-bold text-primary">
-                {mounted ? user.name.split(" ").map((n) => n[0]).join("").slice(0, 2) : "—"}
+                {mounted && user ? user.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2) : "—"}
               </AvatarFallback>
             </Avatar>
             <span className="hidden text-sm font-semibold text-text-primary lg:inline">
-              {mounted ? user.name : ""}
+              {mounted && user ? user.name : ""}
             </span>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem disabled>{mounted ? user.email : ""}</DropdownMenuItem>
+            <DropdownMenuItem disabled>{mounted && user ? user.email : ""}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

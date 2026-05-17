@@ -11,8 +11,31 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [isAutoLogging, setIsAutoLogging] = useState(false)
   const router = useRouter()
   const supabase = createClient()
+
+  const handleDemoLogin = async (demoEmail: string) => {
+    setIsAutoLogging(true)
+    setEmail(demoEmail)
+    setPassword("demo1234")
+    setIsLoading(true)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: demoEmail,
+        password: "demo1234",
+      })
+      if (error) throw error
+      toast.success("Logged in as demo account")
+      router.push("/dashboard")
+      router.refresh()
+    } catch (error: any) {
+      toast.error(error.message || "Demo login failed")
+    } finally {
+      setIsLoading(false)
+      setIsAutoLogging(false)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -111,6 +134,41 @@ export default function LoginPage() {
               </button>
             </div>
           </form>
+
+          <div className="mt-6">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-[#e4e1ee]" />
+              </div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-white px-3 text-[#777587] font-medium">
+                  or use a demo account
+                </span>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {[
+                { label: "Employee", email: "employee@goaltrack.com", color: "text-green-700 border-green-200 hover:bg-green-50" },
+                { label: "Manager",  email: "manager@goaltrack.com",  color: "text-blue-700 border-blue-200 hover:bg-blue-50"  },
+                { label: "Admin",    email: "admin@goaltrack.com",    color: "text-purple-700 border-purple-200 hover:bg-purple-50" },
+              ].map(({ label, email, color }) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => handleDemoLogin(email)}
+                  className={`py-2 px-3 border rounded-lg text-xs font-semibold transition-colors
+                    disabled:opacity-50 disabled:cursor-not-allowed ${color}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-[10px] text-[#777587] mt-2">
+              Password: demo1234 · One click to sign in
+            </p>
+          </div>
 
           <div className="mt-8 text-center">
             <p className="text-[#777587] text-[13px]">

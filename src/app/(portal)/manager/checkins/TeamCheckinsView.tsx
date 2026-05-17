@@ -52,7 +52,7 @@ type TeamMemberCheckin = User & {
 };
 
 export default function TeamCheckinsView() {
-  const { user: currentUser, mounted } = useRole();
+  const { role, user: currentUser, mounted } = useRole();
   const supabase = createClient();
   
   const [loading, setLoading] = useState(true);
@@ -92,11 +92,12 @@ export default function TeamCheckinsView() {
     setLoading(true);
     
     try {
-      // 1. Fetch direct reports
-      const { data: reports, error: reportsError } = await supabase
-        .from('users')
-        .select('*, departments(name)')
-        .eq('manager_id', currentUser.id);
+      // 1. Fetch direct reports (or all users for admin)
+      let query = supabase.from('users').select('*, departments(name)');
+      if (role !== 'admin') {
+        query = query.eq('manager_id', currentUser.id);
+      }
+      const { data: reports, error: reportsError } = await query;
 
       if (reportsError) throw reportsError;
 
@@ -126,12 +127,17 @@ export default function TeamCheckinsView() {
       if (achievementsError) throw achievementsError;
 
       // 4. Fetch manager comments
-      const { data: comments, error: commentsError } = await supabase
+      let commentsQuery = supabase
         .from('checkin_comments')
         .select('*')
         .eq('quarter', activeQuarter)
-        .eq('manager_id', currentUser.id)
         .in('goal_id', goalIds);
+
+      if (role !== 'admin') {
+        commentsQuery = commentsQuery.eq('manager_id', currentUser.id);
+      }
+
+      const { data: comments, error: commentsError } = await commentsQuery;
 
       if (commentsError) throw commentsError;
 
@@ -141,7 +147,12 @@ export default function TeamCheckinsView() {
           .filter((g: any) => g.employee_id === report.id)
           .map((g: any) => {
             const goalAchievements = achievements.filter((a: any) => a.goal_id === g.id);
-            return { ...g, achievements: goalAchievements };
+            const goalComment = comments?.find((c: any) => c.goal_id === g.id);
+            return { 
+              ...g, 
+              achievements: goalAchievements,
+              manager_comment: goalComment ? goalComment.comment : g.manager_comment 
+            };
           });
 
         const allSubmitted = memberGoals.length > 0 && memberGoals.every((g: any) => g.achievements.some((a: any) => a.submitted_at));
@@ -194,7 +205,7 @@ export default function TeamCheckinsView() {
     if (mounted && currentUser && activeQuarter) {
       fetchData();
     }
-  }, [currentUser, mounted, activeQuarter]);
+  }, [currentUser, mounted, activeQuarter, role]);
 
   // ── Realtime: live-update checkins when goals or achievements change ───────
   useEffect(() => {

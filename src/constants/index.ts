@@ -25,6 +25,7 @@ export type NavItem = {
   label: string;
   href: string;
   icon: LucideIcon;
+  section?: "admin" | "team";  // used to render a divider between sections
 };
 
 const employeeNav: NavItem[] = [
@@ -40,11 +41,13 @@ const managerNav: NavItem[] = [
 ];
 
 const adminNav: NavItem[] = [
-  { label: "Overview", href: "/admin", icon: Shield },
-  { label: "Cycle Management", href: "/admin/cycles", icon: RefreshCw },
-  { label: "Shared Goals", href: "/admin/shared-goals", icon: Share2 },
-  { label: "Audit Log", href: "/admin/audit", icon: FileText },
-  { label: "Reports", href: "/admin/reports", icon: BarChart3 },
+  { label: "Overview", href: "/admin", icon: Shield, section: "admin" },
+  { label: "Cycle Management", href: "/admin/cycles", icon: RefreshCw, section: "admin" },
+  { label: "Shared Goals", href: "/admin/shared-goals", icon: Share2, section: "admin" },
+  { label: "Audit Log", href: "/admin/audit", icon: FileText, section: "admin" },
+  { label: "Reports", href: "/admin/reports", icon: BarChart3, section: "admin" },
+  { label: "Team Goals", href: "/manager/team", icon: Users, section: "team" },
+  { label: "Team Check-ins", href: "/manager/checkins", icon: ClipboardCheck, section: "team" },
 ];
 
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {

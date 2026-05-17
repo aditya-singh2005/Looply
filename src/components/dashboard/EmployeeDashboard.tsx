@@ -11,7 +11,7 @@ import {
   computeWeightedAverage,
 } from "@/lib/supabase/queries";
 import { getCurrentQuarterWindow } from "@/lib/utils/dates";
-import { IDS } from "@/constants";
+
 import type { Goal, GoalCycle } from "@/types";
 import { ProgressRing } from "@/components/shared/ProgressRing";
 import { GoalStatusBadge } from "@/components/goals/GoalStatusBadge";
@@ -31,7 +31,8 @@ export function EmployeeDashboard() {
         setLoading(true);
         const activeCycle = await getActiveCycle();
         setCycle(activeCycle);
-        const employeeId = role === "employee" ? user.id : IDS.users.emp1;
+        const employeeId = role === "employee" ? user?.id ?? null : null;
+        if (!employeeId) return;
         const data = await getGoalsByEmployee(employeeId, activeCycle?.id);
         setGoals(data);
       } catch (e) {

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/hooks/useRole";
+import { logAudit } from "@/lib/supabase/audit";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -181,15 +182,49 @@ export default function TeamGoalsView() {
     }
   };
 
+  const handleUnlock = async (goalId: string) => {
+    if (actionLoading || !currentUser?.id) return;
+    setActionLoading(true);
+    try {
+      const { error } = await supabase
+        .from("goals")
+        .update({ status: "approved", locked_at: null })
+        .eq("id", goalId);
+
+      if (error) throw error;
+
+      await logAudit({
+        userId: currentUser.id,
+        goalId: goalId,
+        action: "GOAL_UNLOCKED",
+        entityType: "goal",
+        supabaseClient: supabase,
+      });
+
+      toast.success("Goal unlocked. Employee can now edit and resubmit.");
+      fetchData();
+    } catch (e: any) {
+      console.error(e);
+      toast.error("Failed to unlock goal");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // ── Fetch ────────────────────────────────────────────────────────────────
   const fetchData = async () => {
     if (!currentUser?.id) return;
     setLoading(true);
     try {
-      const { data: reports, error: rErr } = await supabase
-        .from("users")
-        .select("*, departments(name)")
-        .eq("manager_id", currentUser.id);
+      let reportsQuery = supabase.from("users").select("*, departments(name)");
+      
+      if (currentUser.role === "admin") {
+        reportsQuery = reportsQuery.eq("role", "employee");
+      } else {
+        reportsQuery = reportsQuery.eq("manager_id", currentUser.id);
+      }
+
+      const { data: reports, error: rErr } = await reportsQuery;
       if (rErr) throw rErr;
 
       const ids = (reports || []).map((r) => r.id);
@@ -677,6 +712,16 @@ export default function TeamGoalsView() {
                               </>
                             )}
                           </div>
+                        ) : row.goal?.status === "locked" && currentUser?.role === "admin" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50"
+                            disabled={actionLoading}
+                            onClick={() => handleUnlock(row.goal.id)}
+                          >
+                            Unlock
+                          </Button>
                         ) : (
                           <span className="text-xs text-[#777587]">—</span>
                         )}

@@ -47,39 +47,56 @@ export function Sidebar() {
         </div>
       </div>
 
-      <div className="mb-4 px-2 lg:px-3">
-        <Link
-          href="/goals/new"
-          title="New Goal"
-          className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-primary-hover lg:justify-start lg:px-3"
-        >
-          <Plus className="h-[18px] w-[18px]" strokeWidth={1.5} />
-          <span className="hidden lg:inline">New Goal</span>
-        </Link>
-      </div>
+      {role === "employee" && (
+        <div className="mb-4 px-2 lg:px-3">
+          <Link
+            href="/goals/new"
+            title="New Goal"
+            className="flex h-9 w-full items-center justify-center gap-2 rounded-lg bg-primary text-sm font-medium text-white transition-colors hover:bg-primary-hover lg:justify-start lg:px-3"
+          >
+            <Plus className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            <span className="hidden lg:inline">New Goal</span>
+          </Link>
+        </div>
+      )}
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 lg:px-3">
-        {navItems.map((item) => {
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-2 lg:px-3 pb-4">
+        {navItems.map((item, index) => {
           const active =
             pathname === item.href ||
             (item.href !== "/dashboard" && pathname.startsWith(item.href));
           const Icon = item.icon;
+
+          const showSeparator =
+            item.section === "team" &&
+            index > 0 &&
+            navItems[index - 1]?.section === "admin";
+          
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              title={item.label}
-              className={cn(
-                "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-100",
-                "md:justify-center lg:justify-start",
-                active
-                  ? "border-l-[3px] border-primary bg-primary-subtle font-bold text-primary"
-                  : "border-l-[3px] border-transparent text-text-secondary hover:bg-surface-container hover:text-primary"
+            <div key={item.href}>
+              {showSeparator && (
+                <>
+                  <div className="mx-3 my-2 border-t border-border-subtle" />
+                  <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-text-muted hidden lg:block">
+                    Team Management
+                  </p>
+                </>
               )}
-            >
-              <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />
-              <span className="hidden lg:inline">{item.label}</span>
-            </Link>
+              <Link
+                href={item.href}
+                title={item.label}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-100",
+                  "md:justify-center lg:justify-start",
+                  active
+                    ? "border-l-[3px] border-primary bg-primary-subtle font-bold text-primary"
+                    : "border-l-[3px] border-transparent text-text-secondary hover:bg-surface-container hover:text-primary"
+                )}
+              >
+                {Icon && <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.5} />}
+                <span className="hidden lg:inline">{item.label}</span>
+              </Link>
+            </div>
           );
         })}
       </nav>
@@ -98,6 +115,9 @@ export function Sidebar() {
             </p>
             <p className="truncate text-[10px] text-text-muted">
               {mounted && user ? user.email : ""}
+            </p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-primary hidden lg:block">
+              {role}
             </p>
           </div>
           <LogOut className="hidden h-[18px] w-[18px] text-red-500 lg:block group-hover:scale-110 transition-transform" strokeWidth={2} />

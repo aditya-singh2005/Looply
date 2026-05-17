@@ -39,9 +39,5 @@ export function useRole() {
     window.location.href = '/login';
   };
 
-  const switchRole = (newRole: string) => {
-    setRole(newRole);
-  };
-
-  return { role, user, mounted, signOut, switchRole };
+  return { role, user, mounted, signOut };
 }

@@ -6,8 +6,8 @@ import { Plus } from "lucide-react";
 import { useRole } from "@/lib/hooks/useRole";
 import { useGoals } from "@/lib/hooks/useGoals";
 import { getActiveCycle } from "@/lib/supabase/queries";
-import { MAX_GOALS, IDS } from "@/constants";
-import type { Goal, GoalCycle, GoalStatus } from "@/types";
+import { MAX_GOALS } from "@/constants";
+import type { Goal, GoalCycle } from "@/types";
 import { FilterPills, type GoalFilter } from "./FilterPills";
 import { WeightageBar } from "./WeightageBar";
 import { GoalRow } from "./GoalRow";
@@ -38,7 +38,7 @@ function countByStatus(goals: Goal[]): Record<GoalFilter, number> {
 
 export function MyGoalsPage() {
   const { user, role, mounted } = useRole();
-  const employeeId = role === "employee" ? user?.id : IDS.users.emp1;
+  const employeeId = role === "employee" ? user?.id ?? null : null;
   const { goals, loading, refetch } = useGoals(mounted && employeeId ? employeeId : null);
   const [filter, setFilter] = useState<GoalFilter>("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);

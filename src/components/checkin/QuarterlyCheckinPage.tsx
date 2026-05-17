@@ -20,7 +20,7 @@ import { logAudit } from "@/lib/supabase/audit";
 import { computeScore } from "@/lib/utils/score";
 import { getCurrentQuarterWindow } from "@/lib/utils/dates";
 import { useRole } from "@/lib/hooks/useRole";
-import { IDS } from "@/constants";
+
 
 import { ScorePill } from "@/components/checkin/ScorePill";
 import { Button } from "@/components/ui/button";
@@ -270,13 +270,13 @@ export function QuarterlyCheckinPage() {
 
   const hasCycle = cycle !== null;
 
-  const employeeId = mounted && role === "employee" ? user?.id : IDS.users.emp1;
+  const employeeId = mounted && role === "employee" ? user?.id ?? null : null;
 
   const cycleQuarterStart = cycle ? cycle.q2_start : null;
   const cycleQuarterEnd = cycle ? cycle.q2_end : null;
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!mounted || !employeeId) return;
     async function load() {
       try {
         setLoading(true);
@@ -310,7 +310,7 @@ export function QuarterlyCheckinPage() {
             .select("*, thrust_areas(name, color, bg_color), goal_achievements(id, quarter, actual_value, actual_date, status, score, submitted_at)")
             .eq("employee_id", employeeId)
             .eq("cycle_id", cycleData.id)
-            .eq("status", "locked")
+            .in("status", ["approved", "locked"])
             .order("created_at", { ascending: true });
           const fetchedGoals = (goalsData ?? []) as Goal[];
           setGoals(fetchedGoals);

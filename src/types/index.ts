@@ -35,6 +35,7 @@ export interface GoalCycle {
   q3_end: string;
   q4_start: string;
   q4_end: string;
+  is_active: boolean;
 }
 
 export interface ThrustArea {

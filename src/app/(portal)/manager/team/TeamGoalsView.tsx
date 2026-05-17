@@ -128,6 +128,59 @@ export default function TeamGoalsView() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
 
+  // Actions state
+  const [returningGoalId, setReturningGoalId] = useState<string | null>(null);
+  const [returnComment, setReturnComment] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  const handleApprove = async (goalId: string) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/goals/${goalId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "approve" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Goal approved and locked!");
+        fetchData();
+      } else {
+        toast.error(data.error || "Failed to approve goal");
+      }
+    } catch (e: any) {
+      toast.error("An error occurred");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleReturn = async (goalId: string) => {
+    if (actionLoading) return;
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/goals/${goalId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "return", comment: returnComment }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Goal returned for revision");
+        setReturningGoalId(null);
+        setReturnComment("");
+        fetchData();
+      } else {
+        toast.error(data.error || "Failed to return goal");
+      }
+    } catch (e: any) {
+      toast.error("An error occurred");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   // ── Fetch ────────────────────────────────────────────────────────────────
   const fetchData = async () => {
     if (!currentUser?.id) return;
@@ -165,6 +218,38 @@ export default function TeamGoalsView() {
   useEffect(() => {
     if (mounted && currentUser) fetchData();
   }, [mounted, currentUser?.id]);
+
+  // ── Realtime: re-fetch when any goal row changes ──────────────────────────
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`team-goals:manager:${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "goals" },
+        (payload) => {
+          const oldStatus = payload.old?.status as string | undefined;
+          const newStatus = payload.new?.status as string | undefined;
+          const goalTitle = (payload.new?.title as string) ?? "A goal";
+          // Notify manager when employee submits a goal
+          if (oldStatus && newStatus && oldStatus !== newStatus && newStatus === "submitted") {
+            toast.info(`New goal submitted for approval`, {
+              description: `"${goalTitle}" is awaiting your review.`,
+              duration: 6000,
+            });
+          }
+          fetchData();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "goals" },
+        () => { fetchData(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id]);
 
   // ── Flatten rows for the table ───────────────────────────────────────────
   const flatRows: FlatRow[] = useMemo(() => {
@@ -415,7 +500,7 @@ export default function TeamGoalsView() {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-[#f0ecf9]">
-                {["Employee", "Goal Title", "Thrust Area", "Target", "Status", "Alignment"].map(
+                {["Employee", "Goal Title", "Thrust Area", "Target", "Status", "Alignment", "Actions"].map(
                   (col) => (
                     <th
                       key={col}
@@ -431,7 +516,7 @@ export default function TeamGoalsView() {
               {loading ? (
                 Array.from({ length: 4 }).map((_, i) => (
                   <tr key={i}>
-                    {[1, 2, 3, 4, 5, 6].map((j) => (
+                    {[1, 2, 3, 4, 5, 6, 7].map((j) => (
                       <td key={j} className="px-5 py-4">
                         <div className="h-4 animate-pulse rounded bg-gray-100" />
                       </td>
@@ -440,7 +525,7 @@ export default function TeamGoalsView() {
                 ))
               ) : pageRows.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-16 text-center">
+                  <td colSpan={7} className="px-5 py-16 text-center">
                     <Users className="mx-auto mb-3 h-10 w-10 text-gray-200" />
                     <p className="text-sm text-[#777587]">No goals found matching your filters.</p>
                   </td>
@@ -549,6 +634,52 @@ export default function TeamGoalsView() {
                         >
                           {row.goal ? `${row.alignment}%` : "—"}
                         </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-5 py-3.5 align-top">
+                        {row.goal?.status === "submitted" ? (
+                          <div className="flex items-start gap-2">
+                            {returningGoalId === row.goal.id ? (
+                              <div className="flex flex-col gap-1 w-48 relative z-10 bg-white p-2 border shadow-sm rounded-lg">
+                                <textarea
+                                  autoFocus
+                                  placeholder="Reason for return..."
+                                  value={returnComment}
+                                  onChange={(e) => setReturnComment(e.target.value)}
+                                  className="w-full h-16 text-xs p-2 border rounded resize-none focus:outline-none focus:ring-1 focus:ring-[#4f46e5]"
+                                />
+                                <div className="flex items-center gap-1 justify-end mt-1">
+                                  <Button variant="ghost" size="sm" className="h-6 px-2 text-[10px]" disabled={actionLoading} onClick={() => { setReturningGoalId(null); setReturnComment(""); }}>Cancel</Button>
+                                  <Button size="sm" className="h-6 px-2 text-[10px] bg-red-600 hover:bg-red-700 text-white" disabled={actionLoading || !returnComment.trim()} onClick={() => handleReturn(row.goal.id)}>Submit</Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs text-green-600 border-green-200 hover:bg-green-50"
+                                  disabled={actionLoading}
+                                  onClick={() => handleApprove(row.goal.id)}
+                                >
+                                  <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                  disabled={actionLoading}
+                                  onClick={() => setReturningGoalId(row.goal.id)}
+                                >
+                                  Return
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-[#777587]">—</span>
+                        )}
                       </td>
                     </tr>
                   );

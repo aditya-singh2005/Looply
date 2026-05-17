@@ -42,6 +42,7 @@ export interface ThrustArea {
   name: string;
   color: string;
   bg_color: string;
+  user_id?: string;
 }
 
 export interface Goal {

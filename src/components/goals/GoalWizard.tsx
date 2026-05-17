@@ -29,13 +29,7 @@ import { UOM_LABELS } from "@/lib/utils/goal-format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Button } from "@/components/ui/button";
 
 const schema = z.object({
@@ -137,15 +131,12 @@ export function GoalWizard() {
   }, [watched, weightCheck.valid]);
 
   const totalAfter = weightCheck.total;
-  const canSubmit = step2Valid && totalAfter <= 100;
+  // Per-goal submit: only requires this goal's own weightage to be valid (≤100 total, ≥10 this goal)
+  const canSubmit = step2Valid && weightCheck.valid;
 
   async function saveGoal(status: "draft" | "submitted") {
     if (goals.length >= MAX_GOALS && !editId) {
       toast.error("Maximum 8 goals reached for this cycle");
-      return;
-    }
-    if (status === "submitted" && totalAfter !== 100) {
-      toast.error("Total weightage must equal 100% before submitting");
       return;
     }
     if (!weightCheck.valid) {
@@ -169,7 +160,7 @@ export function GoalWizard() {
         description: values.description || null,
         uom_type: values.uom_type,
         target_value: values.uom_type === "timeline" || values.uom_type === "zero" ? values.target_value ?? 0 : values.target_value,
-        target_date: values.uom_type === "timeline" ? values.target_date : null,
+        target_date: values.uom_type === "timeline" ? (values.target_date || null) : null,
         weightage: values.weightage,
         status,
       };
@@ -243,21 +234,17 @@ export function GoalWizard() {
             <h2 className="text-lg font-semibold">Goal Details</h2>
             <div className="space-y-2">
               <Label>Thrust Area</Label>
-              <Select
-                value={watched.thrust_area_id}
-                onValueChange={(v) => form.setValue("thrust_area_id", v ?? "")}
+              <select
+                {...form.register("thrust_area_id")}
+                className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-transparent px-3 py-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select thrust area" />
-                </SelectTrigger>
-                <SelectContent>
-                  {thrustAreas.map((ta) => (
-                    <SelectItem key={ta.id} value={ta.id}>
-                      {ta.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <option value="" disabled hidden>Select thrust area</option>
+                {thrustAreas.map((ta) => (
+                  <option key={ta.id} value={ta.id}>
+                    {ta.name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label>Goal Title</Label>
@@ -400,9 +387,15 @@ export function GoalWizard() {
                 <span className="text-gray-500">Weightage:</span> {watched.weightage}%
               </p>
             </div>
-            {totalAfter !== 100 && (
+            {totalAfter < 100 && (
               <p className="rounded-lg border border-warning/30 bg-warning-bg px-4 py-3 text-sm text-warning">
-                Total weightage is {totalAfter}% (recommended 100% before final cycle submit).
+                ⚠️ Your goals currently total {totalAfter}%. You can still submit this goal for
+                individual manager approval, but all goals must sum to 100% by end of the cycle.
+              </p>
+            )}
+            {totalAfter > 100 && (
+              <p className="rounded-lg border border-destructive/30 bg-red-50 px-4 py-3 text-sm text-destructive">
+                ❌ Total weightage exceeds 100% ({totalAfter}%). Reduce this goal&apos;s weightage before submitting.
               </p>
             )}
             <div className="flex flex-wrap justify-between gap-2">
@@ -420,7 +413,7 @@ export function GoalWizard() {
                 </Button>
                 <Button
                   type="button"
-                  disabled={submitting || !canSubmit || totalAfter > 100}
+                  disabled={submitting || !canSubmit}
                   onClick={() => saveGoal("submitted")}
                   className="bg-primary text-white"
                 >

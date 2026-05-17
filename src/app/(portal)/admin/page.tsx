@@ -82,7 +82,20 @@ export default function AdminOverview() {
       }
     }
     loadData();
-  }, []);
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('admin-overview:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { loadData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => { loadData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goal_achievements' }, () => { loadData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => { loadData(); })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   return (
     <div className="space-y-8">

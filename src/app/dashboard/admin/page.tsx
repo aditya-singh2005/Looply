@@ -31,7 +31,18 @@ export default function AdminDashboard() {
       setLoading(false)
     }
     fetchData()
-  }, [supabase])
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('dashboard-admin:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { fetchData(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'departments' }, () => { fetchData(); })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   const deleteUser = async (id: string) => {
     if (!confirm('Are you sure you want to delete this user? This will also remove their auth account.')) return

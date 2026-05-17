@@ -30,7 +30,8 @@ function countByStatus(goals: Goal[]): Record<GoalFilter, number> {
     locked: 0,
   };
   for (const g of goals) {
-    base[g.status as GoalStatus]++;
+    const status = g.status === "locked" ? "approved" : g.status;
+    base[status as GoalFilter]++;
   }
   return base;
 }
@@ -51,6 +52,9 @@ export function MyGoalsPage() {
 
   const filtered = useMemo(() => {
     if (filter === "all") return goals;
+    if (filter === "approved") {
+      return goals.filter((g) => g.status === "approved" || g.status === "locked");
+    }
     return goals.filter((g) => g.status === filter);
   }, [goals, filter]);
 

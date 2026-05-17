@@ -7,7 +7,7 @@ const STYLES: Record<GoalStatus, string> = {
   submitted: "bg-info-bg text-info",
   approved: "bg-success-bg text-success",
   returned: "bg-danger-bg text-danger",
-  locked: "bg-primary-subtle text-primary",
+  locked: "bg-success-bg text-success",
 };
 
 const LABELS: Record<GoalStatus, string> = {
@@ -15,7 +15,7 @@ const LABELS: Record<GoalStatus, string> = {
   submitted: "Submitted",
   approved: "Approved",
   returned: "Returned",
-  locked: "Locked",
+  locked: "Approved",
 };
 
 export function GoalStatusBadge({

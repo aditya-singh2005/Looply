@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
 import { computeScore } from "@/lib/utils/score";
+import { getCurrentQuarterWindow } from "@/lib/utils/dates";
 import { useRole } from "@/lib/hooks/useRole";
 import { IDS } from "@/constants";
 
@@ -72,8 +73,6 @@ type CheckinComment = {
   created_at: string;
   users: { name: string } | null;
 };
-
-const QUARTER: Quarter = "Q2";
 
 const STATUS_OPTIONS: { value: CheckinStatus; label: string }[] = [
   { value: "not_started", label: "Not Started" },
@@ -255,9 +254,11 @@ export function QuarterlyCheckinPage() {
   const supabase = useMemo(() => createClient(), []);
 
   const [cycle, setCycle] = useState<GoalCycle | null>(null);
+  const [activeQuarter, setActiveQuarter] = useState<Quarter | null>(null);
   const [goals, setGoals] = useState<Goal[]>([]);
   const [commentsMap, setCommentsMap] = useState<Record<string, CheckinComment>>({});
   const [loading, setLoading] = useState(true);
+  const [managerName, setManagerName] = useState<string>("your manager");
 
   const [goalStates, setGoalStates] = useState<Record<string, GoalFormEntry>>({});
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -286,10 +287,27 @@ export function QuarterlyCheckinPage() {
           .maybeSingle();
         setCycle(cycleData as GoalCycle | null);
 
+        // Fetch manager details dynamically
+        const { data: userData } = await supabase
+          .from("users")
+          .select("manager:manager_id(name)")
+          .eq("id", employeeId)
+          .maybeSingle();
+        if (userData?.manager) {
+          const mName = (userData.manager as any).name;
+          if (mName) {
+            setManagerName(mName);
+          }
+        }
+
         if (cycleData) {
+          const window = getCurrentQuarterWindow(cycleData as GoalCycle);
+          const currentQ = window.isOpen ? window.quarter : null;
+          setActiveQuarter(currentQ);
+
           const { data: goalsData } = await supabase
             .from("goals")
-            .select("*, thrust_areas(name, color, bg_color), goal_achievements(id, quarter, actual_value, actual_date, status, submitted_at)")
+            .select("*, thrust_areas(name, color, bg_color), goal_achievements(id, quarter, actual_value, actual_date, status, score, submitted_at)")
             .eq("employee_id", employeeId)
             .eq("cycle_id", cycleData.id)
             .eq("status", "locked")
@@ -298,22 +316,35 @@ export function QuarterlyCheckinPage() {
           setGoals(fetchedGoals);
 
           const states: Record<string, GoalFormEntry> = {};
+          let isSub = false;
+          let subAt = null;
           for (const goal of fetchedGoals) {
-            const existing = (goal.goal_achievements ?? []).find((a) => a.quarter === QUARTER);
+            const existing = (goal.goal_achievements ?? []).find((a) => a.quarter === currentQ);
             const actualValue = existing?.actual_value ?? null;
             const actualDate = existing?.actual_date ?? null;
             const status = existing?.status ?? "not_started";
-            const score = computeScore(goal.uom_type, goal.target_value, goal.target_date, actualValue, actualDate);
+            const score = existing?.score ?? computeScore(goal.uom_type, goal.target_value, goal.target_date, actualValue, actualDate);
             states[goal.id] = { actualValue, actualDate, status, score, isModified: false };
+            if (existing?.submitted_at) {
+              isSub = true;
+              subAt = existing.submitted_at;
+            }
           }
           setGoalStates(states);
+          if (isSub) {
+            setSubmitted(true);
+            setSubmittedAt(subAt);
+          } else {
+            setSubmitted(false);
+            setSubmittedAt(null);
+          }
 
           const goalIds = fetchedGoals.map((g) => g.id);
-          if (goalIds.length > 0) {
+          if (goalIds.length > 0 && currentQ) {
             const { data: commentsData } = await supabase
               .from("checkin_comments")
               .select("*, users(name)")
-              .eq("quarter", QUARTER)
+              .eq("quarter", currentQ)
               .in("goal_id", goalIds);
             const cmap: Record<string, CheckinComment> = {};
             for (const c of (commentsData ?? []) as CheckinComment[]) {
@@ -331,6 +362,35 @@ export function QuarterlyCheckinPage() {
       }
     }
     load();
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel(`checkin:employee:${employeeId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goal_achievements" },
+        () => { load(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "checkin_comments" },
+        () => { load(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goals" },
+        () => { load(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goal_cycles" },
+        () => { load(); }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [mounted, employeeId, supabase]);
 
   const updateGoalState = useCallback((goalId: string, update: Partial<GoalFormEntry>) => {
@@ -356,12 +416,14 @@ export function QuarterlyCheckinPage() {
     async (goalId: string, data: { actualValue: number | null | undefined; actualDate: string | null; status: CheckinStatus }) => {
       setSaveState("saving");
       try {
+        const goal = goals.find((g) => g.id === goalId);
         const payload: Record<string, unknown> = {
           goal_id: goalId,
-          quarter: QUARTER,
+          quarter: activeQuarter,
           actual_value: data.actualValue ?? null,
           actual_date: data.actualDate ?? null,
           status: data.status,
+          score: goal ? computeScore(goal.uom_type, goal.target_value, goal.target_date, data.actualValue ?? null, data.actualDate ?? null) : null,
         };
         const { error } = await supabase.from("goal_achievements").upsert(payload, {
           onConflict: "goal_id,quarter",
@@ -435,12 +497,14 @@ export function QuarterlyCheckinPage() {
     setSaveState("saving");
     try {
       for (const [goalId, data] of entries) {
+        const goal = goals.find((g) => g.id === goalId);
         const payload: Record<string, unknown> = {
           goal_id: goalId,
-          quarter: QUARTER,
+          quarter: activeQuarter,
           actual_value: data.actualValue ?? null,
           actual_date: data.actualDate ?? null,
           status: data.status,
+          score: goal ? computeScore(goal.uom_type, goal.target_value, goal.target_date, data.actualValue ?? null, data.actualDate ?? null) : null,
         };
         const { error } = await supabase.from("goal_achievements").upsert(payload, {
           onConflict: "goal_id,quarter",
@@ -511,10 +575,11 @@ export function QuarterlyCheckinPage() {
         if (!state) continue;
         const payload: Record<string, unknown> = {
           goal_id: goal.id,
-          quarter: QUARTER,
+          quarter: activeQuarter,
           actual_value: state.actualValue ?? null,
           actual_date: state.actualDate ?? null,
           status: state.status,
+          score: state.score ?? null,
           submitted_at: new Date().toISOString(),
         };
         const { error } = await supabase.from("goal_achievements").upsert(payload, {
@@ -526,12 +591,12 @@ export function QuarterlyCheckinPage() {
         userId: employeeId,
         action: "CHECKIN_SUBMITTED",
         entityType: "checkin",
-        newValue: { quarter: QUARTER },
+        newValue: { quarter: activeQuarter! },
       });
       setSubmitted(true);
       setSubmittedAt(new Date().toISOString());
       setSubmitDialogOpen(false);
-      toast.success(`Q2 Check-in submitted successfully! Priya Sharma has been notified.`);
+      toast.success(`${activeQuarter} Check-in submitted successfully! ${managerName} has been notified.`);
     } catch (e) {
       toast.error("Failed to submit check-in", {
         description: e instanceof Error ? e.message : "Unknown error",
@@ -557,14 +622,14 @@ export function QuarterlyCheckinPage() {
     );
   }
 
-  if (!hasCycle) {
+  if (!hasCycle || !activeQuarter) {
     return (
       <div className="flex min-h-[500px] items-center justify-center">
         <div className="max-w-sm text-center">
           <CalendarIcon className="mx-auto mb-4 h-12 w-12 text-gray-300" />
           <h2 className="mb-2 text-page-title text-text-primary">No Active Check-in Window</h2>
           <p className="mb-6 text-sm text-text-secondary">
-            The next check-in window opens in January 2026 for Q3.
+            There is currently no active quarterly check-in window open.
           </p>
           <Button variant="outline" onClick={() => {}}>
             View Previous Submissions
@@ -580,7 +645,7 @@ export function QuarterlyCheckinPage() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <h1 className="text-page-title text-text-primary">{QUARTER} Check-in</h1>
+            <h1 className="text-page-title text-text-primary">{activeQuarter} Check-in</h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
               <CheckCircle className="h-3 w-3" />
               Submitted
@@ -590,13 +655,13 @@ export function QuarterlyCheckinPage() {
 
         <div className="flex items-center gap-2 rounded-card border border-success/30 bg-success-bg px-4 py-3 text-sm text-success">
           <CheckCircle className="h-4 w-4 shrink-0" />
-          <span>{QUARTER} Check-in submitted on {formattedDate}</span>
+          <span>{activeQuarter} Check-in submitted on {formattedDate}</span>
         </div>
 
         <div className="rounded-card border border-border bg-white shadow-card">
           <div className="border-b border-border-subtle px-5 py-4">
             <h2 className="text-section-header font-semibold text-text-primary">
-              Goal Achievement Update — {QUARTER} 2025
+              Goal Achievement Update — {activeQuarter} 2025
             </h2>
           </div>
           <div className="overflow-x-auto">
@@ -652,7 +717,7 @@ export function QuarterlyCheckinPage() {
       <div className="flex items-start justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-page-title text-text-primary">{QUARTER} Check-in</h1>
+            <h1 className="text-page-title text-text-primary">{activeQuarter} Check-in</h1>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-success-bg px-3 py-1 text-xs font-semibold text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success" />
               Open
@@ -663,7 +728,7 @@ export function QuarterlyCheckinPage() {
               </span>
             )}
           </div>
-          <p className="text-sm text-text-secondary">Update your actual achievement for each goal. Your manager Priya Sharma will review after submission.</p>
+          <p className="text-sm text-text-secondary">Update your actual achievement for each goal. Your manager {managerName} will review after submission.</p>
         </div>
         <SaveIndicator state={saveState} onRetry={handleRetry} />
       </div>
@@ -708,7 +773,7 @@ export function QuarterlyCheckinPage() {
       <div className="rounded-card border border-border bg-white shadow-card">
         <div className="border-b border-border-subtle px-5 py-4">
           <h2 className="text-base font-semibold text-text-primary">
-            Goal Achievement Update — {QUARTER} 2025
+            Goal Achievement Update — {activeQuarter} 2025
           </h2>
         </div>
         <div className="overflow-x-auto">
@@ -771,6 +836,7 @@ export function QuarterlyCheckinPage() {
                         <DatePickerCell
                           value={state?.actualDate ?? null}
                           onChange={(d) => handleActualDateChange(goal.id, d)}
+                          disabled={!activeQuarter}
                         />
                       ) : (
                         <Input
@@ -782,6 +848,7 @@ export function QuarterlyCheckinPage() {
                             const v = e.target.value === "" ? null : Number(e.target.value);
                             handleActualValueChange(goal.id, v);
                           }}
+                          disabled={!activeQuarter}
                           className="h-10 w-full rounded-lg border-gray-200 focus-visible:border-indigo-400 focus-visible:ring-indigo-200"
                         />
                       )}
@@ -790,6 +857,7 @@ export function QuarterlyCheckinPage() {
                       <StatusSelect
                         value={state?.status ?? "not_started"}
                         onChange={(v) => handleStatusChange(goal.id, v)}
+                        disabled={!activeQuarter}
                       />
                     </td>
                     <td className="px-4 py-2">
@@ -824,7 +892,7 @@ export function QuarterlyCheckinPage() {
           </table>
         </div>
         <div className="flex items-center justify-between border-t border-border-subtle bg-gray-50 px-5 py-3">
-          <p className="text-sm text-text-muted">Showing {goals.length} goals for {QUARTER} 2025</p>
+          <p className="text-sm text-text-muted">Showing {goals.length} goals for {activeQuarter} 2025</p>
           <div className="flex items-center gap-2 text-sm font-semibold">
             <span className="text-text-muted font-normal">Weighted Average Score:</span>
             <ScorePill score={Math.round(weightedScore)} />
@@ -887,7 +955,7 @@ export function QuarterlyCheckinPage() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-warning" />
-              Submit {QUARTER} Check-in?
+              Submit {activeQuarter} Check-in?
             </DialogTitle>
           </DialogHeader>
 
@@ -935,7 +1003,7 @@ export function QuarterlyCheckinPage() {
             )}
 
             <p className="text-xs text-text-muted">
-              Once submitted, your check-in will be sent to Priya Sharma for review. You cannot edit after submission.
+              Once submitted, your check-in will be sent to {managerName} for review. You cannot edit after submission.
             </p>
           </div>
 

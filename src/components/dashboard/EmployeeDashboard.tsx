@@ -81,7 +81,7 @@ export function EmployeeDashboard() {
             {mounted && user ? user.name.split(" ")[0] : "…"}
           </h1>
           <p className="text-sm text-white/70">
-            Performance Cycle 2025 · {lockedCount} locked goals · Q2 check-in window
+            Performance Cycle 2025 · {lockedCount} approved goals · Q2 check-in window
           </p>
           <div className="flex flex-wrap gap-2 pt-2">
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">

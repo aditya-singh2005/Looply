@@ -1,4 +1,5 @@
 import { createClient } from "./client";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export async function logAudit(params: {
   userId: string;
@@ -7,8 +8,9 @@ export async function logAudit(params: {
   entityType: string;
   oldValue?: Record<string, unknown> | null;
   newValue?: Record<string, unknown> | null;
+  supabaseClient?: SupabaseClient;
 }) {
-  const supabase = createClient();
+  const supabase = params.supabaseClient ?? createClient();
   const { error } = await supabase.from("audit_logs").insert({
     user_id: params.userId,
     goal_id: params.goalId ?? null,

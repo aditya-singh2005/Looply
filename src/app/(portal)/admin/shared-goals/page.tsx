@@ -33,7 +33,18 @@ export default function SharedGoals() {
       }
     }
     loadSharedGoals();
-  }, []);
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('admin-shared-goals:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'goals' }, () => { loadSharedGoals(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => { loadSharedGoals(); })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   return (
     <div className="space-y-6">

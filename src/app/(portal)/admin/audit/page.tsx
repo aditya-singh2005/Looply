@@ -28,7 +28,17 @@ export default function AuditLog() {
       }
     }
     loadLogs();
-  }, []);
+
+    // Subscribe to real-time changes
+    const channel = supabase
+      .channel('admin-audit-logs:realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => { loadLogs(); })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   const getActionColor = (action: string) => {
     switch (action) {

@@ -40,7 +40,8 @@ import { Progress } from "@/components/ui/progress";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import type { User, Goal, ThrustArea, GoalAchievement, Quarter } from "@/types";
+import { getCurrentQuarterWindow } from "@/lib/utils/dates";
+import type { User, Goal, ThrustArea, GoalAchievement, Quarter, GoalCycle } from "@/types";
 
 type TeamMemberCheckin = User & {
   departments: { name: string } | null;
@@ -56,12 +57,35 @@ export default function TeamCheckinsView() {
   
   const [loading, setLoading] = useState(true);
   const [team, setTeam] = useState<TeamMemberCheckin[]>([]);
-  const [activeQuarter, setActiveQuarter] = useState<Quarter>("Q2");
+  const [activeQuarter, setActiveQuarter] = useState<Quarter | null>(null);
   const [selectedMember, setSelectedMember] = useState<TeamMemberCheckin | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   
   // Comment editing state
   const [editingComment, setEditingComment] = useState<{ goalId: string, text: string } | null>(null);
+
+  // Initialize Active Quarter
+  useEffect(() => {
+    if (!mounted || !currentUser || activeQuarter) return;
+    async function initQuarter() {
+      try {
+        const { data: cycleData } = await supabase
+          .from("goal_cycles")
+          .select("*")
+          .eq("is_active", true)
+          .maybeSingle();
+        if (cycleData) {
+          const window = getCurrentQuarterWindow(cycleData as GoalCycle);
+          setActiveQuarter(window.quarter);
+        } else {
+          setActiveQuarter("Q2");
+        }
+      } catch (e) {
+        setActiveQuarter("Q2");
+      }
+    }
+    initQuarter();
+  }, [mounted, currentUser, activeQuarter, supabase]);
 
   const fetchData = async () => {
     if (!currentUser?.id) return;
@@ -78,6 +102,12 @@ export default function TeamCheckinsView() {
 
       // 2. Fetch goals for these reports
       const reportIds = reports.map(r => r.id);
+      if (reportIds.length === 0) {
+        setTeam([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: goals, error: goalsError } = await supabase
         .from('goals')
         .select('*, thrust_areas(*)')
@@ -161,10 +191,29 @@ export default function TeamCheckinsView() {
   };
 
   useEffect(() => {
-    if (mounted && currentUser) {
+    if (mounted && currentUser && activeQuarter) {
       fetchData();
     }
   }, [currentUser, mounted, activeQuarter]);
+
+  // ── Realtime: live-update checkins when goals or achievements change ───────
+  useEffect(() => {
+    if (!currentUser?.id || !activeQuarter) return;
+    const channel = supabase
+      .channel(`team-checkins:manager:${currentUser.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goals" },
+        () => { fetchData(); }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "goal_achievements" },
+        () => { fetchData(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser?.id, activeQuarter, supabase]);
 
   const stats = {
     submitted: team.filter(m => m.checkinStatus === 'submitted').length,
@@ -480,7 +529,7 @@ export default function TeamCheckinsView() {
 
 function ScorePill({ score, size = "md" }: { score: number, size?: "md" | "lg" }) {
   const colorClass = getScoreColor(score);
-  
+
   return (
     <div className={cn(
       "flex items-center justify-center font-bold rounded-full",

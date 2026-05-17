@@ -11,7 +11,6 @@ const FILTERS: { id: GoalFilter; label: string }[] = [
   { id: "submitted", label: "Submitted" },
   { id: "approved", label: "Approved" },
   { id: "returned", label: "Returned" },
-  { id: "locked", label: "Locked" },
 ];
 
 export function FilterPills({

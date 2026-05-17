@@ -97,9 +97,9 @@ export default function LoginPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4f46e5] text-white">
                 <Target className="h-5 w-5" strokeWidth={2} />
               </div>
-              <span className="text-xl font-bold text-[#1b1b24]">GoalTrack</span>
+              <span className="text-xl font-bold text-[#1b1b24]">Looply</span>
             </div>
-            <h1 className="text-2xl font-bold text-[#1b1b24] mb-2 tracking-tight">Sign in to GoalTrack</h1>
+            <h1 className="text-2xl font-bold text-[#1b1b24] mb-2 tracking-tight">Sign in to Looply</h1>
             <p className="text-[#777587] text-sm text-center">Welcome back! Please enter your details.</p>
           </div>
 
@@ -179,9 +179,9 @@ export default function LoginPage() {
 
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[
-                { label: "Employee", email: "employee@goaltrack.dev", color: "text-green-700 border-green-200 hover:bg-green-50" },
-                { label: "Manager",  email: "manager@goaltrack.dev",  color: "text-blue-700 border-blue-200 hover:bg-blue-50"  },
-                { label: "Admin",    email: "admin@goaltrack.dev",    color: "text-purple-700 border-purple-200 hover:bg-purple-50" },
+                { label: "Employee", email: "employee@looply.dev", color: "text-green-700 border-green-200 hover:bg-green-50" },
+                { label: "Manager",  email: "manager@looply.dev",  color: "text-blue-700 border-blue-200 hover:bg-blue-50"  },
+                { label: "Admin",    email: "admin@looply.dev",    color: "text-purple-700 border-purple-200 hover:bg-purple-50" },
               ].map(({ label, email, color }) => (
                 <button
                   key={label}
@@ -211,7 +211,7 @@ export default function LoginPage() {
         </div>
 
         <div className="mt-8 text-center text-[#777587] text-xs">
-          <p>© 2026 GoalTrack Technologies. All rights reserved.</p>
+          <p>© 2026 Looply Technologies. All rights reserved.</p>
           <div className="mt-2 flex items-center justify-center gap-4">
             <Link href="#" className="hover:text-[#464555] transition-colors">Privacy Policy</Link>
             <Link href="#" className="hover:text-[#464555] transition-colors">Terms of Service</Link>

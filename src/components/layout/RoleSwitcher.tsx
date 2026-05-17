@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const DEMO_ACCOUNTS = [
-  { role: "Employee", email: "employee@goaltrack.dev", userId: IDS.users.emp1, password: "Demo@1234" },
-  { role: "Manager", email: "manager@goaltrack.dev", userId: IDS.users.mgr, password: "Demo@1234" },
-  { role: "Admin", email: "admin@goaltrack.dev", userId: IDS.users.admin, password: "Demo@1234" },
+  { role: "Employee", email: "employee@looply.dev", userId: IDS.users.emp1, password: "Demo@1234" },
+  { role: "Manager", email: "manager@looply.dev", userId: IDS.users.mgr, password: "Demo@1234" },
+  { role: "Admin", email: "admin@looply.dev", userId: IDS.users.admin, password: "Demo@1234" },
 ] as const;
 
 export function RoleSwitcher({ className }: { className?: string }) {

@@ -54,7 +54,7 @@ export default function SignupPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4f46e5] text-white">
                 <Target className="h-5 w-5" strokeWidth={2} />
               </div>
-              <span className="text-xl font-bold text-[#1b1b24]">GoalTrack</span>
+              <span className="text-xl font-bold text-[#1b1b24]">Looply</span>
             </div>
             <h1 className="text-2xl font-bold text-[#1b1b24] mb-2 tracking-tight">Create your account</h1>
             <p className="text-[#777587] text-sm text-center">Start tracking your team's goals with precision.</p>
@@ -134,7 +134,7 @@ export default function SignupPage() {
         </div>
 
         <div className="mt-8 text-center text-[#777587] text-xs">
-          <p>© 2026 GoalTrack Technologies. All rights reserved.</p>
+          <p>© 2026 Looply Technologies. All rights reserved.</p>
           <div className="mt-2 flex items-center justify-center gap-4">
             <Link href="#" className="hover:text-[#464555] transition-colors">Privacy Policy</Link>
             <Link href="#" className="hover:text-[#464555] transition-colors">Terms of Service</Link>

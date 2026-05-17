@@ -40,7 +40,7 @@ export function Sidebar() {
           <Target className="h-[18px] w-[18px]" strokeWidth={1.5} />
         </div>
         <div className="hidden overflow-hidden lg:block">
-          <h1 className="text-lg font-bold leading-none text-primary">GoalTrack</h1>
+          <h1 className="text-lg font-bold leading-none text-primary">Looply</h1>
           <p className="text-[10px] font-bold uppercase tracking-widest text-text-secondary">
             Enterprise Edition
           </p>

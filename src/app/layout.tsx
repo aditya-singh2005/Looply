@@ -10,7 +10,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "GoalTrack Enterprise Portal",
+  title: "Looply Enterprise Portal",
   description: "Corporate goal setting and tracking portal",
 };
 

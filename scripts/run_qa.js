@@ -35,9 +35,9 @@ const supabaseAnon = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 const DEMO_ACCOUNTS = {
-  admin: { email: "admin@goaltrack.dev", password: "Demo@1234", role: "admin", id: "11111111-1111-4111-8111-000000000001" },
-  manager: { email: "manager@goaltrack.dev", password: "Demo@1234", role: "manager", id: "11111111-1111-4111-8111-000000000002" },
-  employee: { email: "employee@goaltrack.dev", password: "Demo@1234", role: "employee", id: "11111111-1111-4111-8111-000000000003" }
+  admin: { email: "admin@looply.dev", password: "Demo@1234", role: "admin", id: "11111111-1111-4111-8111-000000000001" },
+  manager: { email: "manager@looply.dev", password: "Demo@1234", role: "manager", id: "11111111-1111-4111-8111-000000000002" },
+  employee: { email: "employee@looply.dev", password: "Demo@1234", role: "employee", id: "11111111-1111-4111-8111-000000000003" }
 };
 
 const results = [];
@@ -49,7 +49,7 @@ function report(testId, description, status, reason = "") {
 
 async function runTests() {
   console.log("\n========================================================");
-  console.log("             RUNNING GOALTRACK QA TEST SUITE            ");
+  console.log("             RUNNING LOOPLY QA TEST SUITE            ");
   console.log("========================================================\n");
 
   // --- SUITE 1: SEED & SETUP ---

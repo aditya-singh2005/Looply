@@ -20,7 +20,7 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function signup() {
   const { data, error } = await supabase.auth.signUp({
-    email: 'test_signup@goaltrack.dev',
+    email: 'test_signup@looply.dev',
     password: 'Demo@1234'
   });
   if (error) {

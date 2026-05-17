@@ -23,7 +23,7 @@ function getPageTitle(pathname: string): string {
   if (pathname.startsWith("/goals/") && pathname !== "/goals/new") {
     return "Goal Details";
   }
-  return PAGE_TITLES[pathname] ?? "GoalTrack";
+  return PAGE_TITLES[pathname] ?? "Looply";
 }
 
 function AppShellFallback() {

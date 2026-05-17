@@ -160,7 +160,7 @@ export default function Reports() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `goaltrack-achievement-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `looply-achievement-report-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -225,7 +225,7 @@ export default function Reports() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `goaltrack-completion-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `looply-completion-report-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally { 

@@ -9,7 +9,7 @@ export function createClient() {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storageKey: 'goaltrack-auth-token',
+        storageKey: 'looply-auth-token',
       },
     }
   );

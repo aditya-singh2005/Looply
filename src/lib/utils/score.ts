@@ -14,8 +14,9 @@ export function computeScore(
       if (actualValue == null || !targetValue || actualValue === 0) return null;
       return Math.min((targetValue / actualValue) * 100, 100);
     case "timeline": {
-      if (!targetDate || !actualDate) return null;
-      const target = new Date(targetDate);
+      const targetD = targetDate || (typeof targetValue === 'string' ? targetValue : null);
+      if (!targetD || !actualDate) return null;
+      const target = new Date(targetD);
       const actual = new Date(actualDate);
       return actual <= target
         ? 100

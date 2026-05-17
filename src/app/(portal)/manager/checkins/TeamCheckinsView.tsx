@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { 
   Users, 
   CheckCircle2, 
@@ -17,7 +18,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/hooks/useRole";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,6 +55,8 @@ type TeamMemberCheckin = User & {
 export default function TeamCheckinsView() {
   const { role, user: currentUser, mounted } = useRole();
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const deepLinkEmployeeId = searchParams.get("employeeId");
   
   const [loading, setLoading] = useState(true);
   const [team, setTeam] = useState<TeamMemberCheckin[]>([]);
@@ -63,6 +66,17 @@ export default function TeamCheckinsView() {
   
   // Comment editing state
   const [editingComment, setEditingComment] = useState<{ goalId: string, text: string } | null>(null);
+
+  // Handle deep-linked employee check-in review
+  useEffect(() => {
+    if (deepLinkEmployeeId && team.length > 0) {
+      const member = team.find(m => m.id === deepLinkEmployeeId);
+      if (member) {
+        setSelectedMember(member);
+        setIsDrawerOpen(true);
+      }
+    }
+  }, [deepLinkEmployeeId, team]);
 
   // Initialize Active Quarter
   useEffect(() => {
@@ -328,6 +342,7 @@ export default function TeamCheckinsView() {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
+                      {member.profile_pic && <AvatarImage src={member.profile_pic} alt={member.name} />}
                       <AvatarFallback className="bg-primary-subtle text-primary text-xs font-bold">
                         {member.avatar_initials || member.name.charAt(0)}
                       </AvatarFallback>
@@ -402,6 +417,7 @@ export default function TeamCheckinsView() {
               <SheetHeader className="p-6 border-b border-border space-y-4">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
+                    {selectedMember.profile_pic && <AvatarImage src={selectedMember.profile_pic} alt={selectedMember.name} />}
                     <AvatarFallback className="bg-primary text-white text-lg font-bold">
                       {selectedMember.avatar_initials || selectedMember.name.charAt(0)}
                     </AvatarFallback>

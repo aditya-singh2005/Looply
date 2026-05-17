@@ -7,13 +7,23 @@ function parseLocalDate(dateStr: string | null | undefined): Date | null {
   return new Date(dateStr.replace(/-/g, "/"));
 }
 
+export function getCurrentDate(): Date {
+  if (typeof window !== "undefined") {
+    const override = localStorage.getItem("dateOverride");
+    if (override) {
+      return new Date(override);
+    }
+  }
+  return new Date();
+}
+
 export function getCurrentQuarterWindow(cycle: GoalCycle): {
   phase: string;
   isOpen: boolean;
   closesIn: number | null;
   quarter: "Q1" | "Q2" | "Q3" | "Q4";
 } {
-  const now = new Date();
+  const now = getCurrentDate();
   const windows = [
     { phase: "Q1", quarter: "Q1" as const, start: parseLocalDate(cycle.q1_start), end: parseLocalDate(cycle.q1_end) },
     { phase: "Q2", quarter: "Q2" as const, start: parseLocalDate(cycle.q2_start), end: parseLocalDate(cycle.q2_end) },

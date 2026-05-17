@@ -73,6 +73,24 @@ export async function POST(
       .update(updatePayload)
       .eq("id", id);
 
+    if (!updateError) {
+      if (action === "approve") {
+        await supabase.from("notifications").insert({
+          user_id: goal.employee_id,
+          title: "Goal Approved",
+          body: `Your goal "${goal.title}" has been approved and locked.`,
+          is_read: false
+        });
+      } else if (action === "return") {
+        await supabase.from("notifications").insert({
+          user_id: goal.employee_id,
+          title: "Goal Returned",
+          body: `Your goal "${goal.title}" was returned by your manager${comment ? `: "${comment}"` : "."}`,
+          is_read: false
+        });
+      }
+    }
+
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 });
     }

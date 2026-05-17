@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { Download, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import Papa from "papaparse";
 import { createClient } from "@/lib/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -91,20 +92,33 @@ export default function Reports() {
     setIsExporting(true);
     try {
       const headers = ["Employee", "Email", "Department", "Goal Title", "UoM", "Target", "Weightage", "Q1 Actual", "Q1 Score%", "Q2 Actual", "Q2 Score%", "Annual Score%"];
-      const rows = [headers.join(",")];
+      const rows: any[] = [];
       
       filteredData.forEach(user => {
-        const empName = `"${user.name}"`;
-        const empEmail = `"${user.email}"`;
-        const empDept = `"${user.departments?.name || ''}"`;
+        const empName = user.name;
+        const empEmail = user.email;
+        const empDept = user.departments?.name || '';
         
         if (!user.goals || user.goals.length === 0) {
-          rows.push([empName, empEmail, empDept, "No goals", "", "", "", "", "", "", "", ""].join(","));
+          rows.push({
+            "Employee": empName,
+            "Email": empEmail,
+            "Department": empDept,
+            "Goal Title": "No goals",
+            "UoM": "",
+            "Target": "",
+            "Weightage": "",
+            "Q1 Actual": "",
+            "Q1 Score%": "",
+            "Q2 Actual": "",
+            "Q2 Score%": "",
+            "Annual Score%": ""
+          });
           return;
         }
 
         user.goals.forEach((goal: any) => {
-          const title = `"${(goal.title || '').replace(/"/g, '""')}"`;
+          const title = goal.title || '';
           const uom = goal.uom_type;
           const target = goal.uom_type === 'timeline' ? goal.target_date : goal.target_value;
           const weight = goal.weightage;
@@ -124,20 +138,98 @@ export default function Reports() {
           });
           const annual = count > 0 ? Math.round(sum / count) : '';
           
-          rows.push([empName, empEmail, empDept, title, uom, target, weight, q1Actual, q1Score, q2Actual, q2Score, annual].join(","));
+          rows.push({
+            "Employee": empName,
+            "Email": empEmail,
+            "Department": empDept,
+            "Goal Title": title,
+            "UoM": uom,
+            "Target": target,
+            "Weightage": weight,
+            "Q1 Actual": q1Actual,
+            "Q1 Score%": q1Score,
+            "Q2 Actual": q2Actual,
+            "Q2 Score%": q2Score,
+            "Annual Score%": annual
+          });
         });
       });
       
-      const csvString = rows.join("\n");
-      const blob = new Blob([csvString], { type: "text/csv" });
+      const csvString = Papa.unparse({ fields: headers, data: rows });
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = "achievement-report.csv";
+      a.download = `goaltrack-achievement-report-${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const exportCompletionCsv = () => {
+    setIsExporting(true);
+    try {
+      const headers = ["Employee", "Email", "Department", "Goal Title", "Locked", "Q1 Submitted", "Q2 Submitted", "Overall Status"]; 
+      const rows: any[] = [];
+      
+      filteredData.forEach(user => {
+        const empName = user.name;
+        const empEmail = user.email;
+        const empDept = user.departments?.name || '';
+        
+        if (!user.goals || user.goals.length === 0) {
+          rows.push({
+            "Employee": empName,
+            "Email": empEmail,
+            "Department": empDept,
+            "Goal Title": "No goals",
+            "Locked": "—",
+            "Q1 Submitted": "—",
+            "Q2 Submitted": "—",
+            "Overall Status": "—"
+          });
+          return;
+        }
+
+        user.goals.forEach((goal: any) => {
+          const title = goal.title || '';
+          const locked = goal.status === 'locked' ? 'Yes' : 'No';
+          const q1Submitted = goal.goal_achievements?.some((a: any) => a.quarter === 'Q1' && a.submitted_at) ? 'Yes' : 'No';
+          const q2Submitted = goal.goal_achievements?.some((a: any) => a.quarter === 'Q2' && a.submitted_at) ? 'Yes' : 'No';
+          
+          const statuses: boolean[] = [];
+          if (filterQuarter === 'All' || filterQuarter === 'Q1') statuses.push(q1Submitted === 'Yes');
+          if (filterQuarter === 'All' || filterQuarter === 'Q2') statuses.push(q2Submitted === 'Yes');
+          
+          let overall = 'Pending';
+          if (statuses.length > 0 && statuses.every(s => s)) overall = 'Complete';
+          else if (statuses.some(s => s)) overall = 'Partial';
+
+          rows.push({
+            "Employee": empName,
+            "Email": empEmail,
+            "Department": empDept,
+            "Goal Title": title,
+            "Locked": locked,
+            "Q1 Submitted": q1Submitted,
+            "Q2 Submitted": q2Submitted,
+            "Overall Status": overall
+          });
+        });
+      });
+
+      const csvString = Papa.unparse({ fields: headers, data: rows });
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `goaltrack-completion-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally { 
+      setIsExporting(false); 
     }
   };
 
@@ -152,6 +244,12 @@ export default function Reports() {
           <Button onClick={exportCsv} disabled={isExporting || filteredData.length === 0} className="bg-[#4f46e5] hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2">
             {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             {isExporting ? "Exporting..." : "Export Report"}
+          </Button>
+        )}
+        {activeTab === "completion" && (
+          <Button onClick={exportCompletionCsv} disabled={isExporting || filteredData.length === 0} className="bg-[#4f46e5] hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2">
+            {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isExporting ? "Exporting..." : "Export Completion"}
           </Button>
         )}
       </div>

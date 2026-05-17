@@ -10,13 +10,14 @@ import {
   getGoalsByEmployee,
   computeWeightedAverage,
 } from "@/lib/supabase/queries";
-import { getCurrentQuarterWindow } from "@/lib/utils/dates";
+import { getCurrentQuarterWindow, getCurrentDate } from "@/lib/utils/dates";
 
 import type { Goal, GoalCycle } from "@/types";
 import { ProgressRing } from "@/components/shared/ProgressRing";
 import { GoalStatusBadge } from "@/components/goals/GoalStatusBadge";
 import { ThrustAreaBadge } from "@/components/shared/ThrustAreaBadge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export function EmployeeDashboard() {
   const { user, role, mounted } = useRole();
@@ -47,12 +48,30 @@ export function EmployeeDashboard() {
   }, [mounted, role, user?.id]);
 
   const window = cycle ? getCurrentQuarterWindow(cycle) : null;
-  const avgScore = computeWeightedAverage(goals, window?.quarter ?? "Q2");
+  const activeQuarter = window?.quarter ?? "Q2";
+  const avgScore = computeWeightedAverage(goals, activeQuarter);
   const lockedCount = goals.filter((g) => g.status === "locked").length;
   const submittedCount = goals.filter((g) => g.status !== "draft").length;
+  
+  // Goal Health Score Calculations
+  const totalCount = goals.length;
+  const completionRate = totalCount > 0 ? Math.round((lockedCount / totalCount) * 100) : 0;
+  
+  const onTrackCount = goals.reduce((acc, goal) => {
+    const ach = goal.goal_achievements?.find((a) => a.quarter === activeQuarter);
+    if (ach && (ach.status === "on_track" || ach.status === "completed")) {
+      return acc + 1;
+    }
+    return acc;
+  }, 0);
+
+  const lastQuarter = activeQuarter === "Q2" ? "Q1" : activeQuarter === "Q3" ? "Q2" : activeQuarter === "Q4" ? "Q3" : "";
+  const lastAvgScore = lastQuarter ? computeWeightedAverage(goals, lastQuarter) : 0;
+  const scoreDiff = avgScore - lastAvgScore;
+  const trend = scoreDiff > 0 ? "up" : scoreDiff < 0 ? "down" : "flat";
 
   const greeting = () => {
-    const h = new Date().getHours();
+    const h = getCurrentDate().getHours();
     if (h < 12) return "Good morning";
     if (h < 17) return "Good afternoon";
     return "Good evening";
@@ -93,11 +112,11 @@ export function EmployeeDashboard() {
             </span>
           </div>
         </div>
-        <div className="mt-6 flex justify-center md:mt-0">
+        <div className="mt-6 flex justify-center text-white md:mt-0">
           {loading ? (
-            <Skeleton className="h-[88px] w-[88px] rounded-full" />
+            <Skeleton className="h-[88px] w-[88px] text-white rounded-full" />
           ) : (
-            <div className="rounded-full bg-white/10 p-2 backdrop-blur">
+            <div className="rounded-full bg-white/10 p-2 text-white backdrop-blur">
               <ProgressRing percentage={avgScore} />
             </div>
           )}
@@ -126,34 +145,108 @@ export function EmployeeDashboard() {
         </div>
       )}
 
-      {/* Stats row */}
+      {/* Goal Health Scorecard Row */}
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {[
-          { label: "Goals Submitted", value: submittedCount, icon: Target },
-          { label: "Avg Achievement", value: `${Math.round(avgScore)}%`, icon: TrendingUp },
-          {
-            label: "Pending Check-in",
-            value: window?.isOpen ? window.phase : "Closed",
-            icon: Clock,
-          },
-        ].map((stat) => (
-          <div
-            key={stat.label}
-            className="rounded-card border border-border bg-white p-5 shadow-card"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-label-eyebrow text-xs font-semibold uppercase tracking-wider text-text-muted">
-                {stat.label}
+        {/* Completion Rate Card */}
+        <div className="rounded-card border border-border bg-white p-5 shadow-card flex flex-col justify-between">
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-label-eyebrow text-xs font-bold uppercase tracking-wider text-text-muted">
+                Completion Rate
               </p>
-              <stat.icon className="h-[18px] w-[18px] text-primary" strokeWidth={1.5} />
+              <span className="rounded bg-indigo-50 p-1.5 text-primary">
+                <Target className="h-4 w-4" />
+              </span>
             </div>
             {loading ? (
-              <Skeleton className="h-8 w-16" />
+              <Skeleton className="h-8 w-24 mb-2" />
             ) : (
-              <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-3xl font-black text-text-primary tracking-tight">{completionRate}%</p>
+                <p className="text-xs text-text-secondary">({lockedCount} of {totalCount} goals locked)</p>
+              </div>
             )}
           </div>
-        ))}
+          <div className="mt-4">
+            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all duration-300",
+                  completionRate >= 80 ? "bg-emerald-500" : completionRate >= 50 ? "bg-amber-500" : "bg-rose-500"
+                )}
+                style={{ width: `${completionRate}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* On-Track Goals Card */}
+        <div className="rounded-card border border-border bg-white p-5 shadow-card flex flex-col justify-between">
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-label-eyebrow text-xs font-bold uppercase tracking-wider text-text-muted">
+                On-Track Goals
+              </p>
+              <span className="rounded bg-emerald-50 p-1.5 text-emerald-600">
+                <TrendingUp className="h-4 w-4" />
+              </span>
+            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-24 mb-2" />
+            ) : (
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-3xl font-black text-text-primary tracking-tight">
+                  {onTrackCount}
+                </p>
+                <p className="text-xs text-text-secondary">goals on track / completed</p>
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-text-muted mt-4">
+            Based on active {activeQuarter} achievements.
+          </p>
+        </div>
+
+        {/* Weighted Score Card */}
+        <div className="rounded-card border border-border bg-white p-5 shadow-card flex flex-col justify-between">
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-label-eyebrow text-xs font-bold uppercase tracking-wider text-text-muted">
+                Weighted Score
+              </p>
+              <span className="rounded bg-indigo-50 p-1.5 text-primary">
+                <Clock className="h-4 w-4" />
+              </span>
+            </div>
+            {loading ? (
+              <Skeleton className="h-8 w-24 mb-2" />
+            ) : (
+              <div className="flex items-baseline gap-2 mb-1">
+                <p className="text-3xl font-black text-text-primary tracking-tight">
+                  {Math.round(avgScore)}%
+                </p>
+                {trend === "up" && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                    ↑ {Math.abs(Math.round(scoreDiff))}% <span className="text-[10px] text-emerald-600/70 font-normal">vs {lastQuarter}</span>
+                  </span>
+                )}
+                {trend === "down" && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                    ↓ {Math.abs(Math.round(scoreDiff))}% <span className="text-[10px] text-rose-600/70 font-normal">vs {lastQuarter}</span>
+                  </span>
+                )}
+                {trend === "flat" && lastQuarter && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full">
+                    • <span className="text-[10px] text-gray-500/70 font-normal">vs {lastQuarter}</span>
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-text-muted mt-4">
+            Weighted average across approved goals.
+          </p>
+        </div>
       </div>
 
       {/* Goals list */}

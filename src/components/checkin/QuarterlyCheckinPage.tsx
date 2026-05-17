@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { logAudit } from "@/lib/supabase/audit";
 import { computeScore } from "@/lib/utils/score";
-import { getCurrentQuarterWindow } from "@/lib/utils/dates";
+import { getCurrentQuarterWindow, getCurrentDate } from "@/lib/utils/dates";
 import { useRole } from "@/lib/hooks/useRole";
 
 
@@ -570,9 +570,12 @@ export function QuarterlyCheckinPage() {
   const handleSubmit = useCallback(async () => {
     if (!allFilled) return;
     try {
+      let totalSynced = 0;
+
       for (const goal of goals) {
         const state = goalStates[goal.id];
         if (!state) continue;
+        const submittedAt = getCurrentDate().toISOString();
         const payload: Record<string, unknown> = {
           goal_id: goal.id,
           quarter: activeQuarter,
@@ -580,21 +583,59 @@ export function QuarterlyCheckinPage() {
           actual_date: state.actualDate ?? null,
           status: state.status,
           score: state.score ?? null,
-          submitted_at: new Date().toISOString(),
+          submitted_at: submittedAt,
         };
         const { error } = await supabase.from("goal_achievements").upsert(payload, {
           onConflict: "goal_id,quarter",
         });
         if (error) throw error;
+
+        // FIX 5: Sync shared goal achievements to linked copies
+        if (goal.is_shared && !goal.shared_from_goal_id) {
+          const { data: linkedGoals } = await supabase
+            .from("goals")
+            .select("id")
+            .eq("shared_from_goal_id", goal.id);
+
+          if (linkedGoals && linkedGoals.length > 0) {
+            for (const linked of linkedGoals) {
+              const syncPayload: Record<string, unknown> = {
+                goal_id: linked.id,
+                quarter: activeQuarter,
+                actual_value: state.actualValue ?? null,
+                actual_date: state.actualDate ?? null,
+                status: state.status,
+                score: state.score ?? null,
+                submitted_at: submittedAt,
+              };
+              await supabase.from("goal_achievements").upsert(syncPayload, {
+                onConflict: "goal_id,quarter",
+              });
+              totalSynced++;
+            }
+          }
+        }
       }
+
       await logAudit({
         userId: employeeId,
         action: "CHECKIN_SUBMITTED",
         entityType: "checkin",
         newValue: { quarter: activeQuarter! },
       });
+
+      // FIX 5: Log sync audit if any linked goals were synced
+      if (totalSynced > 0) {
+        await logAudit({
+          userId: employeeId,
+          action: "SHARED_GOAL_ACHIEVEMENT_SYNCED",
+          entityType: "checkin",
+          newValue: { quarter: activeQuarter!, linked_goals_synced: totalSynced },
+        });
+      }
+
       setSubmitted(true);
-      setSubmittedAt(new Date().toISOString());
+      setSubmittedAt(getCurrentDate().toISOString());
       setSubmitDialogOpen(false);
       toast.success(`${activeQuarter} Check-in submitted successfully! ${managerName} has been notified.`);
     } catch (e) {
@@ -866,19 +907,18 @@ export function QuarterlyCheckinPage() {
                     <td className="px-4 py-2">
                       {comment ? (
                         <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <div className="cursor-default">
-                                <p className="max-w-[180px] truncate text-xs italic text-text-muted leading-relaxed line-clamp-2">
-                                  {comment.comment}
-                                </p>
-                                <p className="mt-0.5 text-[11px] text-gray-400">— {comment.users?.name ?? "Manager"}</p>
-                              </div>
-                            }
-                          />
-                          <TooltipContent side="left" className="max-w-xs">
-                            <p className="text-xs">{comment.comment}</p>
-                            <p className="mt-1 text-[11px] text-gray-400">— {comment.users?.name ?? "Manager"}</p>
+                          <TooltipTrigger render={<div className="cursor-pointer select-none" />}>
+                            <p className="max-w-[180px] truncate text-xs italic text-text-muted leading-relaxed line-clamp-2">
+                              {comment.comment}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-gray-400">— {comment.users?.name ?? "Manager"}</p>
+                          </TooltipTrigger>
+                          <TooltipContent side="left" className="max-w-xs p-3 shadow-lg">
+                            <div className="space-y-1.5">
+                              <p className="font-semibold text-sm">Manager Feedback</p>
+                              <p className="text-xs leading-relaxed opacity-90">{comment.comment}</p>
+                              <p className="mt-2 text-[10px] text-gray-300">— {comment.users?.name ?? "Manager"}</p>
+                            </div>
                           </TooltipContent>
                         </Tooltip>
                       ) : (
@@ -924,22 +964,17 @@ export function QuarterlyCheckinPage() {
               Save Progress
             </Button>
             <Tooltip>
-              <TooltipTrigger
-                disabled={allFilled}
-                render={
-                  <span tabIndex={0}>
-                    <Button
-                      size="sm"
-                      className="bg-primary text-white hover:bg-primary-hover"
-                      disabled={!allFilled}
-                      onClick={() => setSubmitDialogOpen(true)}
-                    >
-                      <Send className="mr-1 h-3.5 w-3.5" />
-                      Submit Check-in
-                    </Button>
-                  </span>
-                }
-              />
+              <TooltipTrigger render={<span tabIndex={0} />}>
+                <Button
+                  size="sm"
+                  className="bg-primary text-white hover:bg-primary-hover"
+                  disabled={!allFilled}
+                  onClick={() => setSubmitDialogOpen(true)}
+                >
+                  <Send className="mr-1 h-3.5 w-3.5" />
+                  Submit Check-in
+                </Button>
+              </TooltipTrigger>
               {!allFilled && (
                 <TooltipContent>
                   <p>Please update all goals before submitting</p>

@@ -17,10 +17,11 @@ import { createClient } from "@/lib/supabase";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getCurrentDate } from "@/lib/utils/dates";
 
 export function ManagerDashboard() {
   const { user, mounted } = useRole();
@@ -35,6 +36,7 @@ export function ManagerDashboard() {
     inProgress: 0
   });
   const [pendingMembers, setPendingMembers] = useState<any[]>([]);
+  const [teamProgress, setTeamProgress] = useState<any[]>([]);
 
   useEffect(() => {
     if (!mounted || !user) return;
@@ -46,7 +48,7 @@ export function ManagerDashboard() {
         // Fetch team members
         const { data: members, error: membersError } = await supabase
           .from('users')
-          .select('id, name, avatar_initials, departments(name)')
+          .select('id, name, avatar_initials, profile_pic, departments(name)')
           .eq('manager_id', user.id);
           
         if (membersError) throw membersError;
@@ -69,7 +71,7 @@ export function ManagerDashboard() {
         if (goalIds.length > 0) {
           const { data: achData, error: achievementsError } = await supabase
             .from('goal_achievements')
-            .select('score, status, submitted_at')
+            .select('score, status, submitted_at, goal_id')
             .in('goal_id', goalIds)
             .eq('quarter', 'Q2');
           if (achievementsError) throw achievementsError;
@@ -84,7 +86,6 @@ export function ManagerDashboard() {
         const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
         
         const submittedCount = achievements.filter(a => a.submitted_at).length;
-        const totalAchievements = achievements.length || 1;
 
         setTeamStats({
           totalMembers: members.length,
@@ -96,6 +97,47 @@ export function ManagerDashboard() {
         });
         
         setPendingMembers(pending.slice(0, 3));
+
+        // Calculate progress tracker for each direct report
+        const progressList = members.map(m => {
+          const empGoals = goals.filter(g => g.employee_id === m.id);
+          const totalGoals = empGoals.length;
+          
+          if (totalGoals === 0) {
+            return {
+              id: m.id,
+              name: m.name,
+              avatar_initials: m.avatar_initials,
+              profile_pic: m.profile_pic,
+              percentage: 0,
+              total: 0,
+              completed: 0,
+              color: 'red'
+            };
+          }
+
+          const empGoalIds = empGoals.map(g => g.id);
+          const empAchievements = achievements.filter(a => empGoalIds.includes(a.goal_id));
+          const completedAchievements = empAchievements.filter(a => a.submitted_at !== null).length;
+          const percentage = Math.round((completedAchievements / totalGoals) * 100);
+
+          let color = 'red';
+          if (percentage >= 80) color = 'green';
+          else if (percentage >= 50) color = 'amber';
+
+          return {
+            id: m.id,
+            name: m.name,
+            avatar_initials: m.avatar_initials,
+            profile_pic: m.profile_pic,
+            percentage,
+            total: totalGoals,
+            completed: completedAchievements,
+            color
+          };
+        });
+
+        setTeamProgress(progressList);
       } catch (e) {
         console.error(e);
         toast.error("Failed to load manager dashboard");
@@ -108,7 +150,7 @@ export function ManagerDashboard() {
   }, [mounted, user?.id]);
 
   const greeting = () => {
-    const h = new Date().getHours();
+    const h = getCurrentDate().getHours();
     if (h < 12) return "Good morning";
     if (h < 17) return "Good afternoon";
     return "Good evening";
@@ -195,6 +237,7 @@ export function ManagerDashboard() {
                   <div key={member.id} className="flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9">
+                        {member.profile_pic && <AvatarImage src={member.profile_pic} alt={member.name} />}
                         <AvatarFallback className="bg-primary-subtle text-primary text-xs font-bold">
                           {member.avatar_initials || member.name.charAt(0)}
                         </AvatarFallback>
@@ -229,15 +272,56 @@ export function ManagerDashboard() {
               <Progress value={teamStats.checkinProgress} className="h-2 bg-indigo-50" />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-[10px] font-bold text-text-muted uppercase mb-1">On Track</p>
-                <p className="text-xl font-bold text-green-600">{teamStats.submitted}</p>
-              </div>
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-[10px] font-bold text-text-muted uppercase mb-1">In Progress</p>
-                <p className="text-xl font-bold text-amber-600">{teamStats.inProgress}</p>
-              </div>
+            {/* Individual Direct Report Progress Bars */}
+            <div className="space-y-4 border-t border-border-subtle pt-4">
+              <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Direct Reports Completion</p>
+              {loading ? (
+                <div className="space-y-2">
+                  <Skeleton className="h-8 w-full" />
+                  <Skeleton className="h-8 w-full" />
+                </div>
+              ) : teamProgress.length === 0 ? (
+                <p className="text-xs text-text-muted italic">No direct reports found.</p>
+              ) : (
+                <div className="space-y-3">
+                  {teamProgress.map((report) => (
+                    <Link
+                      key={report.id}
+                      href={`/manager/checkins?employeeId=${report.id}`}
+                      className="group block rounded-lg border border-border bg-surface-container-lowest p-3 shadow-sm transition-all hover:bg-gray-50/50 hover:shadow"
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="h-6 w-6">
+                            {report.profile_pic && <AvatarImage src={report.profile_pic} alt={report.name} />}
+                            <AvatarFallback className="bg-primary-subtle text-primary text-[10px] font-bold">
+                              {report.avatar_initials || report.name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs font-bold text-text-primary group-hover:text-primary transition-colors">
+                            {report.name}
+                          </span>
+                        </div>
+                        <span className={cn(
+                          "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                          report.color === 'green' ? 'bg-green-50 text-green-700' : report.color === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+                        )}>
+                          {report.percentage}% ({report.completed}/{report.total})
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all duration-300",
+                            report.color === 'green' ? 'bg-emerald-500' : report.color === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+                          )}
+                          style={{ width: `${report.percentage}%` }}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="rounded-lg bg-gray-50 p-4 border border-border flex items-start gap-3">

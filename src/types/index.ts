@@ -18,6 +18,7 @@ export interface User {
   department_id: string | null;
   manager_id: string | null;
   avatar_initials: string | null;
+  profile_pic: string | null;
 }
 
 export interface GoalCycle {
@@ -59,6 +60,7 @@ export interface Goal {
   weightage: number;
   status: GoalStatus;
   is_shared: boolean;
+  shared_from_goal_id: string | null;   // FIX 5: for shared goal sync
   locked_at: string | null;
   manager_comment: string | null;
   created_at: string;

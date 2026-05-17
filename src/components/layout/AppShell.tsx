@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
@@ -26,6 +26,23 @@ function getPageTitle(pathname: string): string {
   return PAGE_TITLES[pathname] ?? "GoalTrack";
 }
 
+function AppShellFallback() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="space-y-2">
+        <div className="h-8 w-48 rounded bg-gray-200" />
+        <div className="h-4 w-64 rounded bg-gray-200" />
+      </div>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="h-28 rounded-xl bg-gray-100" />
+        <div className="h-28 rounded-xl bg-gray-100" />
+        <div className="h-28 rounded-xl bg-gray-100" />
+      </div>
+      <div className="h-96 rounded-xl bg-gray-100" />
+    </div>
+  );
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [searchQuery, setSearchQuery] = useState("");
@@ -39,7 +56,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onSearchChange={setSearchQuery}
       />
       <main className="min-h-screen pt-topbar md:pl-16 lg:pl-[240px]">
-        <div className="mx-auto max-w-content p-4 md:p-6 lg:p-8">{children}</div>
+        <div className="mx-auto max-w-content p-4 md:p-6 lg:p-8">
+          <Suspense fallback={<AppShellFallback />}>
+            {children}
+          </Suspense>
+        </div>
       </main>
     </div>
   );

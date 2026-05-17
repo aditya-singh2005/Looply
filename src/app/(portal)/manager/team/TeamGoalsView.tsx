@@ -7,16 +7,23 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  AlertCircle,
-  Clock,
   Users,
+  AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/hooks/useRole";
 import { logAudit } from "@/lib/supabase/audit";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +54,7 @@ type TeamMember = {
   name: string;
   email: string;
   avatar_initials?: string;
+  profile_pic?: string;
   role: string;
   departments: { name: string } | null;
   goals: GoalRow[];
@@ -134,10 +142,55 @@ export default function TeamGoalsView() {
   const [returnComment, setReturnComment] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
 
-  const handleApprove = async (goalId: string) => {
+  // FIX 6: Inline edit state for target/weightage before approval
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editTarget, setEditTarget] = useState<string>("");
+  const [editWeightage, setEditWeightage] = useState<string>("");
+
+  // FIX 8: Confirmation dialog for piecemeal approval
+  const [confirmGoalId, setConfirmGoalId] = useState<string | null>(null);
+  const [confirmEmployeeTotal, setConfirmEmployeeTotal] = useState<number>(0);
+
+  // FIX 6: Approve with optional inline edits
+  const handleApprove = async (goalId: string, employeeTotalWeight: number) => {
     if (actionLoading) return;
+    // FIX 8: If total != 100, require confirmation
+    if (employeeTotalWeight !== 100) {
+      setConfirmGoalId(goalId);
+      setConfirmEmployeeTotal(employeeTotalWeight);
+      return;
+    }
+    await doApprove(goalId);
+  };
+
+  const doApprove = async (goalId: string) => {
+    if (actionLoading || !currentUser?.id) return;
     setActionLoading(true);
+    setConfirmGoalId(null);
     try {
+      // FIX 6: Apply inline edits if any before approving
+      if (editingGoalId === goalId) {
+        const updates: Record<string, unknown> = {};
+        const parsedTarget = parseFloat(editTarget);
+        const parsedWeight = parseFloat(editWeightage);
+        if (!isNaN(parsedTarget)) updates.target_value = parsedTarget;
+        if (!isNaN(parsedWeight) && parsedWeight >= 10 && parsedWeight <= 100) updates.weightage = parsedWeight;
+
+        if (Object.keys(updates).length > 0) {
+          const { error: updateErr } = await createClient().from("goals").update(updates).eq("id", goalId);
+          if (updateErr) throw updateErr;
+          await logAudit({
+            userId: currentUser.id,
+            goalId,
+            action: "MODIFIED",
+            entityType: "goal",
+            oldValue: {},
+            newValue: updates,
+          });
+        }
+        setEditingGoalId(null);
+      }
+
       const res = await fetch(`/api/goals/${goalId}/approve`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -584,6 +637,7 @@ export default function TeamGoalsView() {
                       <td className="px-5 py-3.5">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-8 w-8 shrink-0">
+                            {row.employee.profile_pic && <AvatarImage src={row.employee.profile_pic} alt={row.employee.name} />}
                             <AvatarFallback className="bg-[#e0e7ff] text-[#4f46e5] text-xs font-bold">
                               {row.employee.avatar_initials || row.employee.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
@@ -674,7 +728,35 @@ export default function TeamGoalsView() {
                       {/* Actions */}
                       <td className="px-5 py-3.5 align-top">
                         {row.goal?.status === "submitted" ? (
-                          <div className="flex items-start gap-2">
+                          <div className="flex flex-col gap-2">
+                            {/* FIX 6: Inline editing for target/weightage */}
+                            {editingGoalId === row.goal.id && (
+                              <div className="flex flex-col gap-1.5 w-52 p-2 border border-indigo-200 rounded-lg bg-indigo-50">
+                                <p className="text-[10px] font-bold uppercase text-indigo-600">Edit before approving</p>
+                                <div className="flex gap-1 items-center">
+                                  <label className="text-[10px] w-16 shrink-0 text-gray-500">Target</label>
+                                  <Input
+                                    type="number"
+                                    value={editTarget}
+                                    onChange={(e) => setEditTarget(e.target.value)}
+                                    placeholder={String(row.goal.target_value ?? "")}
+                                    className="h-6 text-xs"
+                                  />
+                                </div>
+                                <div className="flex gap-1 items-center">
+                                  <label className="text-[10px] w-16 shrink-0 text-gray-500">Weight %</label>
+                                  <Input
+                                    type="number"
+                                    value={editWeightage}
+                                    onChange={(e) => setEditWeightage(e.target.value)}
+                                    placeholder={String(row.goal.weightage)}
+                                    className="h-6 text-xs"
+                                    min={10}
+                                    max={100}
+                                  />
+                                </div>
+                              </div>
+                            )}
                             {returningGoalId === row.goal.id ? (
                               <div className="flex flex-col gap-1 w-48 relative z-10 bg-white p-2 border shadow-sm rounded-lg">
                                 <textarea
@@ -690,13 +772,13 @@ export default function TeamGoalsView() {
                                 </div>
                               </div>
                             ) : (
-                              <>
+                              <div className="flex items-center gap-1.5 flex-wrap">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="h-7 px-2 text-xs text-green-600 border-green-200 hover:bg-green-50"
                                   disabled={actionLoading}
-                                  onClick={() => handleApprove(row.goal.id)}
+                                  onClick={() => handleApprove(row.goal.id, row.alignment)}
                                 >
                                   <CheckCircle2 className="h-3 w-3 mr-1" /> Approve
                                 </Button>
@@ -709,7 +791,22 @@ export default function TeamGoalsView() {
                                 >
                                   Return
                                 </Button>
-                              </>
+                                {/* FIX 6: Edit toggle */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-xs text-indigo-600 hover:bg-indigo-50"
+                                  onClick={() => {
+                                    if (editingGoalId === row.goal.id) { setEditingGoalId(null); } else {
+                                      setEditingGoalId(row.goal.id);
+                                      setEditTarget(String(row.goal.target_value ?? ""));
+                                      setEditWeightage(String(row.goal.weightage));
+                                    }
+                                  }}
+                                >
+                                  {editingGoalId === row.goal.id ? "Cancel Edit" : "Edit"}
+                                </Button>
+                              </div>
                             )}
                           </div>
                         ) : row.goal?.status === "locked" && currentUser?.role === "admin" ? (
@@ -733,6 +830,32 @@ export default function TeamGoalsView() {
             </tbody>
           </table>
         </div>
+
+        {/* FIX 8: Confirmation Dialog for piecemeal approval */}
+        <Dialog open={!!confirmGoalId} onOpenChange={() => setConfirmGoalId(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-700">
+                <AlertTriangle className="h-5 w-5" />
+                Confirm Partial Approval
+              </DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-gray-600">
+              This employee&apos;s goals currently total{" "}
+              <span className="font-bold text-amber-600">{confirmEmployeeTotal}%</span>. Are you sure you want to approve before the total reaches 100%?
+            </p>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setConfirmGoalId(null)}>Cancel</Button>
+              <Button
+                className="bg-amber-500 hover:bg-amber-600 text-white"
+                onClick={() => confirmGoalId && doApprove(confirmGoalId)}
+                disabled={actionLoading}
+              >
+                Yes, Approve Anyway
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Pagination Footer */}
         {!loading && filtered.length > 0 && (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Target, Plus, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NAV_BY_ROLE } from "@/constants";
@@ -9,19 +9,19 @@ import { useRole } from "@/lib/hooks/useRole";
 import { createClient } from "@/lib/supabase";
 import { toast } from "sonner";
 
+import { TimeTravelWidget } from "./TimeTravelWidget";
+
 export function Sidebar() {
   const pathname = usePathname();
-  const { role, user, mounted } = useRole();
+  const router = useRouter();
+  const { role, user, mounted, signOut } = useRole();
   const navItems = (role && NAV_BY_ROLE[role as keyof typeof NAV_BY_ROLE]) || [];
   const supabase = createClient();
 
   const handleLogout = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
+      await signOut();
       toast.success("Logged out successfully");
-      window.location.href = "/login";
     } catch (error: any) {
       toast.error("Logout failed");
       console.error(error);
@@ -85,6 +85,8 @@ export function Sidebar() {
               <Link
                 href={item.href}
                 title={item.label}
+                prefetch={true}
+                onMouseEnter={() => router.prefetch(item.href)}
                 className={cn(
                   "relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-100",
                   "md:justify-center lg:justify-start",
@@ -101,13 +103,22 @@ export function Sidebar() {
         })}
       </nav>
 
+      {/* Time Travel date override widget */}
+      <TimeTravelWidget />
+
       <div className="mt-auto border-t border-border px-2 pt-4 lg:px-3">
         <div 
           onClick={handleLogout}
           className="flex items-center gap-3 rounded-lg p-2 hover:bg-surface-container cursor-pointer transition-colors group"
         >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-sm font-bold text-primary group-hover:bg-primary-subtle/80">
-            {mounted && user ? user.name.charAt(0) : "—"}
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary-subtle text-sm font-bold text-primary group-hover:bg-primary-subtle/80 overflow-hidden">
+            {mounted && user ? (
+              user.profile_pic ? (
+                <img src={user.profile_pic} alt={user.name} className="h-full w-full object-cover" />
+              ) : (
+                user.name.charAt(0)
+              )
+            ) : "—"}
           </div>
           <div className="hidden min-w-0 flex-1 lg:block text-left">
             <p className="truncate text-xs font-bold group-hover:text-primary transition-colors">

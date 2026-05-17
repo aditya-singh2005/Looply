@@ -51,18 +51,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
-    // Role-based access control
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profile) {
-      return supabaseResponse
-    }
-
-    const role = profile.role
+    // Role-based access control from JWT claims
+    const role = user.user_metadata?.role ?? user.app_metadata?.role ?? 'employee'
 
     if (pathname.startsWith('/admin') && role !== 'admin') {
       return NextResponse.redirect(new URL('/dashboard', request.url))

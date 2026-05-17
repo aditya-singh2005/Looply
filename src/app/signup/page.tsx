@@ -136,9 +136,9 @@ export default function SignupPage() {
         <div className="mt-8 text-center text-[#777587] text-xs">
           <p>© 2026 GoalTrack Technologies. All rights reserved.</p>
           <div className="mt-2 flex items-center justify-center gap-4">
-            <a href="#" className="hover:text-[#464555] transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-[#464555] transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-[#464555] transition-colors">Security</a>
+            <Link href="#" className="hover:text-[#464555] transition-colors">Privacy Policy</Link>
+            <Link href="#" className="hover:text-[#464555] transition-colors">Terms of Service</Link>
+            <Link href="#" className="hover:text-[#464555] transition-colors">Security</Link>
           </div>
         </div>
       </div>

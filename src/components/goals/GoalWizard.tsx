@@ -11,6 +11,7 @@ import {
   Check,
   ArrowLeft,
   ArrowRight,
+  Lock,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,13 +24,12 @@ import { useRole } from "@/lib/hooks/useRole";
 import { useGoals } from "@/lib/hooks/useGoals";
 import { validateWeightage } from "@/lib/utils/weightage";
 import { IDS, MAX_GOALS, MIN_WEIGHTAGE } from "@/constants";
-import type { ThrustArea, UomType } from "@/types";
+import type { GoalCycle, ThrustArea, UomType } from "@/types";
 import { WeightageBar } from "./WeightageBar";
 import { UOM_LABELS } from "@/lib/utils/goal-format";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
 import { Button } from "@/components/ui/button";
 
 const schema = z.object({
@@ -56,6 +56,24 @@ const UOM_OPTIONS: {
   { id: "zero", title: "Zero", desc: "Zero = 100% success", icon: Shield },
 ];
 
+function isWindowOpen(cycle: GoalCycle | null): { open: boolean; reason: string } {
+  if (!cycle) return { open: false, reason: "No active performance cycle found." };
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(cycle.goal_setting_start);
+  const end = new Date(cycle.goal_setting_end);
+  if (today < start) {
+    return {
+      open: false,
+      reason: `Goal setting window is closed. Opens ${start.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`,
+    };
+  }
+  if (today > end) {
+    return { open: false, reason: "Goal setting period has ended for this cycle." };
+  }
+  return { open: true, reason: "" };
+}
+
 export function GoalWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -65,6 +83,24 @@ export function GoalWizard() {
   const [step, setStep] = useState(1);
   const [thrustAreas, setThrustAreas] = useState<ThrustArea[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [cycle, setCycle] = useState<GoalCycle | null>(null);
+  const [cycleLoading, setCycleLoading] = useState(true);
+
+  // FIX 3: Fetch active cycle and check window
+  useEffect(() => {
+    createClient()
+      .from("goal_cycles")
+      .select("*")
+      .eq("is_active", true)
+      .maybeSingle()
+      .then(
+        ({ data }) => {
+          setCycle(data as GoalCycle | null);
+          setCycleLoading(false);
+        },
+        () => setCycleLoading(false)
+      );
+  }, []);
 
   const existingForWeight = goals.filter((g) => g.id !== editId && g.status !== "draft");
 
@@ -131,8 +167,9 @@ export function GoalWizard() {
   }, [watched, weightCheck.valid]);
 
   const totalAfter = weightCheck.total;
-  // Per-goal submit: only requires this goal's own weightage to be valid (≤100 total, ≥10 this goal)
   const canSubmit = step2Valid && weightCheck.valid;
+  // FIX 1: only allow "submitted" status if total === 100
+  const canSubmitToApproval = canSubmit && totalAfter === 100;
 
   async function saveGoal(status: "draft" | "submitted") {
     if (goals.length >= MAX_GOALS && !editId) {
@@ -187,6 +224,15 @@ export function GoalWizard() {
         });
       }
 
+      if (status === "submitted" && user.manager_id) {
+        await supabase.from("notifications").insert({
+          user_id: user.manager_id,
+          title: "Goal Submitted for Approval",
+          body: `${user.name} has submitted the goal "${values.title}" for approval.`,
+          is_read: false
+        });
+      }
+
       toast.success(
         status === "submitted" ? "Goal submitted for approval" : "Goal saved as draft"
       );
@@ -199,7 +245,47 @@ export function GoalWizard() {
     }
   }
 
+  // FIX 1: Click handler for Submit for Approval — saves as draft if total < 100
+  async function handleSubmitClick() {
+    if (totalAfter === 100) {
+      await saveGoal("submitted");
+    } else {
+      await saveGoal("draft");
+      toast.info(
+        "Saved as draft. Add more goals until total reaches 100% to submit for approval.",
+        { duration: 5000 }
+      );
+    }
+  }
+
   const selectedThrust = thrustAreas.find((t) => t.id === watched.thrust_area_id);
+
+  // FIX 3: Show full-page notice if window is closed
+  if (!cycleLoading) {
+    const windowStatus = isWindowOpen(cycle);
+    if (!windowStatus.open) {
+      return (
+        <div className="mx-auto max-w-[720px] space-y-8 pb-12">
+          <Link href="/goals" className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-primary">
+            <ArrowLeft className="h-4 w-4" />
+            Back to My Goals
+          </Link>
+          <div className="rounded-card border border-amber-200 bg-amber-50 p-10 text-center shadow-card">
+            <Lock className="mx-auto mb-4 h-12 w-12 text-amber-400" />
+            <h2 className="mb-2 text-xl font-bold text-amber-900">Goal Setting Window Closed</h2>
+            <p className="mb-6 text-sm text-amber-700">{windowStatus.reason}</p>
+            <Link
+              href="/goals"
+              className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-amber-700"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to My Goals
+            </Link>
+          </div>
+        </div>
+      );
+    }
+  }
 
   return (
     <div className="mx-auto max-w-[720px] space-y-8 pb-12">
@@ -387,10 +473,11 @@ export function GoalWizard() {
                 <span className="text-gray-500">Weightage:</span> {watched.weightage}%
               </p>
             </div>
+
+            {/* FIX 1: Info banners about 100% requirement */}
             {totalAfter < 100 && (
               <p className="rounded-lg border border-warning/30 bg-warning-bg px-4 py-3 text-sm text-warning">
-                ⚠️ Your goals currently total {totalAfter}%. You can still submit this goal for
-                individual manager approval, but all goals must sum to 100% by end of the cycle.
+                ⚠️ Your goals will total {totalAfter}% after saving. Clicking &quot;Submit for Approval&quot; will save as draft until total reaches 100%.
               </p>
             )}
             {totalAfter > 100 && (
@@ -398,6 +485,12 @@ export function GoalWizard() {
                 ❌ Total weightage exceeds 100% ({totalAfter}%). Reduce this goal&apos;s weightage before submitting.
               </p>
             )}
+            {totalAfter === 100 && (
+              <p className="rounded-lg border border-success/30 bg-success-bg px-4 py-3 text-sm text-success">
+                ✅ Total weightage is exactly 100%. This goal can be submitted directly for approval.
+              </p>
+            )}
+
             <div className="flex flex-wrap justify-between gap-2">
               <Button type="button" variant="outline" onClick={() => setStep(2)}>
                 Back
@@ -411,13 +504,17 @@ export function GoalWizard() {
                 >
                   Save as Draft
                 </Button>
+                {/* FIX 1: Button text changes based on whether total = 100 */}
                 <Button
                   type="button"
                   disabled={submitting || !canSubmit}
-                  onClick={() => saveGoal("submitted")}
-                  className="bg-primary text-white"
+                  onClick={handleSubmitClick}
+                  className={cn(
+                    "text-white",
+                    canSubmitToApproval ? "bg-primary" : "bg-amber-500 hover:bg-amber-600"
+                  )}
                 >
-                  Submit for Approval
+                  {canSubmitToApproval ? "Submit for Approval" : "Save as Draft (100% required)"}
                 </Button>
               </div>
             </div>

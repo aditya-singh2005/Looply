@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase";
 import { useRole } from "@/lib/hooks/useRole";
 import { toast } from "sonner";
 import { IDS } from "@/constants";
-import { ChevronDown, Drama } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ const DEMO_ACCOUNTS = [
 ] as const;
 
 export function RoleSwitcher({ className }: { className?: string }) {
-  const { role, mounted, signOut } = useRole();
+  const { role, mounted } = useRole();
   const [switching, setSwitching] = useState(false);
   const router = useRouter();
 
@@ -36,11 +36,12 @@ export function RoleSwitcher({ className }: { className?: string }) {
       });
       if (error) throw error;
       toast.success(`Switched to ${account.role} view`);
-      // Force a client‑side navigation to dashboard to avoid server‑side redirect latency
-      router.replace('/dashboard');
+      // Force a clean window reload to refresh the session and cookies cleanly
+      setTimeout(() => {
+        window.location.href = account.role === "Admin" ? "/admin" : "/dashboard";
+      }, 100);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Failed to switch role');
-    } finally {
       setSwitching(false);
     }
   };
@@ -50,11 +51,9 @@ export function RoleSwitcher({ className }: { className?: string }) {
   return (
     <div className={`relative flex items-center ${className ?? ''}`}> 
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <button className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:opacity-50 disabled:cursor-not-allowed" disabled={switching}>
-            {role ?? 'Switch Role'}
-            <ChevronDown className="h-4 w-4" />
-          </button>
+        <DropdownMenuTrigger className="inline-flex items-center gap-2 rounded-full bg-indigo-50 px-3 py-1 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/50 disabled:opacity-50 disabled:cursor-not-allowed" disabled={switching}>
+          {role ?? 'Switch Role'}
+          <ChevronDown className="h-4 w-4" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
           {DEMO_ACCOUNTS.map((account) => (

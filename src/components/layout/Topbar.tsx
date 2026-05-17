@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { RoleSwitcher } from "@/components/layout/RoleSwitcher";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
-import { getCurrentDate, getCurrentQuarterWindow } from "@/lib/utils/dates";
+import { getCurrentQuarterWindow } from "@/lib/utils/dates";
 
 interface NotificationItem {
   id: string;
@@ -33,7 +33,7 @@ export function Topbar({
   searchQuery?: string;
   onSearchChange?: (q: string) => void;
 }) {
-  const { user, role, mounted, signOut } = useRole();
+  const { user, mounted, signOut } = useRole();
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 
   useEffect(() => {
@@ -196,19 +196,16 @@ export function Topbar({
         <RoleSwitcher />
 
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="relative rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-container"
-              aria-label="Notifications"
-            >
-              <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} />
-              {unreadCount > 0 && (
-                <span className="absolute -right-0.5 -top-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white ring-2 ring-white">
-                  {unreadCount}
-                </span>
-              )}
-            </button>
+          <DropdownMenuTrigger
+            className="relative rounded-full p-2 text-text-secondary transition-colors hover:bg-surface-container"
+            aria-label="Notifications"
+          >
+            <Bell className="h-[18px] w-[18px]" strokeWidth={1.5} />
+            {unreadCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-danger text-[9px] font-bold text-white ring-2 ring-white">
+                {unreadCount}
+              </span>
+            )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-80 p-0 shadow-xl border border-border bg-white rounded-xl overflow-hidden">
             <div className="flex items-center justify-between border-b border-border bg-surface-container-low px-4 py-3">

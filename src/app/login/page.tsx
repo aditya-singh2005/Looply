@@ -29,10 +29,12 @@ export default function LoginPage() {
       })
       if (error) throw error
       toast.success("Logged in as demo account")
-      router.push("/dashboard")
+      const landing = demoEmail.includes("admin") ? "/admin" : "/dashboard";
+      setTimeout(() => {
+        window.location.href = landing;
+      }, 100);
     } catch (error: any) {
       toast.error(error.message || "Demo login failed")
-    } finally {
       setIsLoading(false)
       setIsAutoLogging(false)
     }
@@ -67,10 +69,18 @@ export default function LoginPage() {
       if (error) throw error
 
       toast.success('Successfully logged in!')
-      router.push('/dashboard')
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', (await supabase.auth.getUser()).data.user?.id)
+        .single();
+      
+      const landing = profile?.role === 'admin' ? '/admin' : '/dashboard';
+      setTimeout(() => {
+        window.location.href = landing;
+      }, 100);
     } catch (error: any) {
       toast.error(error.message || 'Failed to login')
-    } finally {
       setIsLoading(false)
     }
   }
